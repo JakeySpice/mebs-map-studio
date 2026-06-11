@@ -46,10 +46,9 @@ jobs:
       - name: Disable Jekyll
         run: touch out/.nojekyll
 
+      # Pages is enabled once at the repo level (Settings → Pages → "GitHub
+      # Actions"); this step just reads that config for the build.
       - uses: actions/configure-pages@v5
-        with:
-          # Turn Pages on automatically the first time this runs.
-          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
