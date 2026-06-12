@@ -72,19 +72,27 @@ browser, consistent with the privacy model).
 
 - **Home screen** — create a new map (optionally pre-seeded with the nine MEBS
   domains) or explore a fully worked, de-identified sample case.
-- **Map canvas** — root on the left, branches flowing right with curved edges,
-  pastel nodes coloured semantically (lavender root, blue domains, mint
-  supports/skills, rose risks, amber formulation factors, yellow data/questions).
-  Expand/collapse chips, zoom/pan, smooth re-layout.
-- **GUI-first input** — click a node to open the inspector (label, type,
+- **Botanical formulation view** (default) — the map is arranged like the
+  clinical logic of MEBS: contextual **roots** spread downward, the
+  **formulation trunk** stands centre with maintaining variables flanking it,
+  **behaviour patterns** sit beside the trunk as pressure points (visible, not
+  central), the **support plan branches** fan upward out of the formulation,
+  and **quality-of-life outcomes** form the canopy on top. Quality-of-life
+  goals are automatically lifted into the canopy wherever they live in the
+  hierarchy. Soft zone backdrops label each region.
+- **Outline view** — the original NotebookLM-style left-to-right tree remains
+  one click away in the toolbar (per map, remembered).
+- **GUI-first input** — click a node to open the inspector (label, type, zone,
   summary, notes); quick-add suggestion chips seeded from the MEBS framework;
   hover **+** to add a branch; double-click to rename inline.
-- **Relationship mode** — toggle in the toolbar to reveal labelled clinical
-  cross-links (e.g. *increases risk of*, *is replacement for*). Drag from a
-  node's lower dot to another node to draw a new link; click a link to edit
-  its type, label and notes.
+- **Relationship layer** — *Off / Selected / All* in the toolbar. Clinical
+  cross-links render as curved side-routed edges with compact badges
+  (*risk ↑*, *maintains*, *replaces*, *toward QoL*…). Click any node to
+  spotlight its relationships and dim everything unrelated; click a badge or
+  link to edit its type, label and notes; drag from a node's lower dot (in
+  *All*) to draw a new link.
 - **Export** — JSON (full data, practitioner-owned), Markdown formulation
-  summary, or PNG image of the map.
+  summary, or PNG image of the map (zone backdrops and badges included).
 
 ## Privacy
 

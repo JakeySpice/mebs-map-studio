@@ -93,7 +93,7 @@ export function countDescendants(
  * NotebookLM-style tidy tree: root at the left, children flowing right,
  * each parent vertically centred on its children, even sibling spacing.
  */
-export function layoutMap(map: MebsMap): LayoutResult {
+export function layoutMap(map: Pick<MebsMap, "nodes">): LayoutResult {
   const childrenOf = buildChildrenMap(map.nodes);
   const root = map.nodes.find((n) => n.type === "root" && n.parentId === null)
     ?? map.nodes.find((n) => n.parentId === null);

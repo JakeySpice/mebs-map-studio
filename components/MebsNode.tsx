@@ -8,8 +8,15 @@ import {
   type NodeProps,
   type Node,
 } from "@xyflow/react";
-import { ChevronLeft, Plus } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  Plus,
+} from "lucide-react";
 import { nodeColors, type MebsNode as MebsNodeData } from "@/types/graph";
+import type { GrowDir } from "@/lib/layoutBotanical";
 import { useMapStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +29,18 @@ export interface MebsFlowData extends Record<string, unknown> {
   descendantCount: number;
   isEditing: boolean;
   relationshipMode: boolean;
+  /** direction this node's children grow (botanical) — picks the chevron */
+  dir: GrowDir;
+  /** focus mode: fade nodes unrelated to the selection */
+  dimmed: boolean;
 }
+
+const COLLAPSE_CHEVRON: Record<GrowDir, React.ComponentType<{ className?: string }>> = {
+  right: ChevronLeft,
+  left: ChevronRight,
+  down: ChevronUp,
+  up: ChevronDown,
+};
 
 export type MebsFlowNode = Node<MebsFlowData, "mebs">;
 
@@ -91,13 +109,15 @@ function MebsNodeComponent({ id, data, selected }: NodeProps<MebsFlowNode>) {
         "group relative flex items-center rounded-2xl border px-3.5 transition-shadow",
         selected
           ? "shadow-[0_0_0_2.5px_rgba(255,255,255,0.85),0_8px_24px_rgba(0,0,0,0.45)]"
-          : "shadow-[0_3px_12px_rgba(0,0,0,0.35)] hover:shadow-[0_0_0_2px_rgba(255,255,255,0.35),0_6px_18px_rgba(0,0,0,0.4)]"
+          : "shadow-[0_3px_12px_rgba(0,0,0,0.35)] hover:shadow-[0_0_0_2px_rgba(255,255,255,0.35),0_6px_18px_rgba(0,0,0,0.4)]",
+        data.dimmed && "opacity-35 saturate-50"
       )}
       style={{
         width,
         height,
         backgroundColor: colors.bg,
         borderColor: colors.border,
+        transition: "box-shadow 150ms ease, opacity 200ms ease, filter 200ms ease",
       }}
       onDoubleClick={(e) => {
         e.stopPropagation();
@@ -117,6 +137,34 @@ function MebsNodeComponent({ id, data, selected }: NodeProps<MebsFlowNode>) {
         position={Position.Right}
         isConnectable={false}
         className="!pointer-events-none !h-1.5 !w-1.5 !border-0 !bg-transparent"
+      />
+      {/* invisible anchors completing the grid: botanical structural edges
+          and side-ported semantic edges pick from these by id */}
+      <Handle
+        id="out-t"
+        type="source"
+        position={Position.Top}
+        isConnectable={false}
+        className="!pointer-events-none !h-1.5 !w-1.5 !border-0 !bg-transparent !opacity-0"
+      />
+      <Handle
+        id="in-b"
+        type="target"
+        position={Position.Bottom}
+        className="!pointer-events-none !h-1.5 !w-1.5 !border-0 !bg-transparent !opacity-0"
+      />
+      <Handle
+        id="out-l"
+        type="source"
+        position={Position.Left}
+        isConnectable={false}
+        className="!pointer-events-none !h-1.5 !w-1.5 !border-0 !bg-transparent !opacity-0"
+      />
+      <Handle
+        id="in-r"
+        type="target"
+        position={Position.Right}
+        className="!pointer-events-none !h-1.5 !w-1.5 !border-0 !bg-transparent !opacity-0"
       />
       {/* cross-link handles: drag from the bottom dot to another node */}
       <Handle
@@ -186,7 +234,10 @@ function MebsNodeComponent({ id, data, selected }: NodeProps<MebsFlowNode>) {
           {mebs.collapsed ? (
             descendantCount
           ) : (
-            <ChevronLeft className="h-3.5 w-3.5" />
+            (() => {
+              const Chevron = COLLAPSE_CHEVRON[data.dir] ?? ChevronLeft;
+              return <Chevron className="h-3.5 w-3.5" />;
+            })()
           )}
         </button>
       )}

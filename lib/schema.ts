@@ -1,8 +1,11 @@
 import { z } from "zod";
-import { ALL_EDGE_TYPES, ALL_NODE_TYPES } from "@/types/graph";
+import { ALL_EDGE_TYPES, ALL_NODE_TYPES, ZONE_IDS } from "@/types/graph";
 
+// Note: z.object strips unknown keys, so adding optional fields here stays
+// forward- and backward-compatible with stored maps. Never add .strict().
 const nodeTypeSchema = z.enum(ALL_NODE_TYPES as [string, ...string[]]);
 const edgeTypeSchema = z.enum(ALL_EDGE_TYPES as [string, ...string[]]);
+const zoneSchema = z.enum(ZONE_IDS);
 
 export const mebsNodeSchema = z.object({
   id: z.string().min(1),
@@ -15,6 +18,7 @@ export const mebsNodeSchema = z.object({
   collapsed: z.boolean(),
   childTypeHint: nodeTypeSchema.optional(),
   templateId: z.string().optional(),
+  mapZone: zoneSchema.optional(),
 });
 
 export const mebsEdgeSchema = z.object({
@@ -34,6 +38,7 @@ export const mebsMapSchema = z.object({
   version: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  layoutMode: z.enum(["outline", "botanical"]).optional(),
   nodes: z.array(mebsNodeSchema),
   edges: z.array(mebsEdgeSchema),
 }).superRefine((map, ctx) => {

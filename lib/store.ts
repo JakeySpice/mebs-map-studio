@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import type {
   EdgeType,
+  LayoutMode,
   MebsEdge,
   MebsMap,
   MebsNode,
@@ -15,6 +16,9 @@ import {
   saveMap,
 } from "@/lib/storage";
 
+/** How much of the semantic relationship layer is drawn. */
+export type LinkVisibility = "off" | "selected" | "all";
+
 interface MapState {
   map: MebsMap | null;
   mapMissing: boolean;
@@ -23,7 +27,7 @@ interface MapState {
   selectedEdgeId: string | null;
   /** node whose label is being edited inline on the canvas */
   editingNodeId: string | null;
-  relationshipMode: boolean;
+  linkVisibility: LinkVisibility;
   /** asks the canvas to pan/zoom so these nodes are visible */
   focusRequest: { ids: string[]; nonce: number } | null;
 
@@ -35,7 +39,8 @@ interface MapState {
   selectEdge: (id: string | null) => void;
   clearSelection: () => void;
   setEditingNode: (id: string | null) => void;
-  setRelationshipMode: (on: boolean) => void;
+  setLinkVisibility: (v: LinkVisibility) => void;
+  setLayoutMode: (mode: LayoutMode) => void;
 
   updateMapTitle: (title: string) => void;
 
@@ -92,7 +97,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   selectedNodeId: null,
   selectedEdgeId: null,
   editingNodeId: null,
-  relationshipMode: false,
+  linkVisibility: "selected",
   focusRequest: null,
 
   openMap: (id) => {
@@ -104,7 +109,7 @@ export const useMapStore = create<MapState>((set, get) => ({
       selectedNodeId: null,
       selectedEdgeId: null,
       editingNodeId: null,
-      relationshipMode: false,
+      linkVisibility: "selected",
     });
   },
 
@@ -116,7 +121,7 @@ export const useMapStore = create<MapState>((set, get) => ({
       selectedNodeId: null,
       selectedEdgeId: null,
       editingNodeId: null,
-      relationshipMode: false,
+      linkVisibility: "selected",
     }),
 
   clearStorageError: () => set({ storageError: null }),
@@ -125,20 +130,30 @@ export const useMapStore = create<MapState>((set, get) => ({
     set({ selectedNodeId: id, selectedEdgeId: null }),
 
   selectEdge: (id) =>
-    // selecting an edge implies wanting to see it: force relationship mode on
-    set({ selectedEdgeId: id, selectedNodeId: null, relationshipMode: true }),
+    // selecting an edge implies wanting to see it: lift visibility off "off"
+    set((s) => ({
+      selectedEdgeId: id,
+      selectedNodeId: null,
+      linkVisibility: s.linkVisibility === "off" ? "selected" : s.linkVisibility,
+    })),
 
   clearSelection: () =>
     set({ selectedNodeId: null, selectedEdgeId: null, editingNodeId: null }),
 
   setEditingNode: (id) => set({ editingNodeId: id }),
 
-  setRelationshipMode: (on) =>
+  setLinkVisibility: (v) =>
     set((s) => ({
-      relationshipMode: on,
+      linkVisibility: v,
       // an edge selection makes no sense once the edges are hidden
-      selectedEdgeId: on ? s.selectedEdgeId : null,
+      selectedEdgeId: v === "off" ? null : s.selectedEdgeId,
     })),
+
+  setLayoutMode: (mode) => {
+    const { map } = get();
+    if (!map || (map.layoutMode ?? "botanical") === mode) return;
+    set(commit({ ...map, layoutMode: mode }));
+  },
 
   updateMapTitle: (title) => {
     const { map } = get();
@@ -282,7 +297,7 @@ export const useMapStore = create<MapState>((set, get) => ({
     }
     set({
       ...committed,
-      relationshipMode: true,
+      linkVisibility: "all",
       selectedEdgeId: edge.id,
       selectedNodeId: null,
     });
