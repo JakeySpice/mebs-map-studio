@@ -35,7 +35,7 @@ function MapView() {
   const mapMissing = useMapStore((s) => s.mapMissing);
   const selectedNodeId = useMapStore((s) => s.selectedNodeId);
   const selectedEdgeId = useMapStore((s) => s.selectedEdgeId);
-  const relationshipMode = useMapStore((s) => s.relationshipMode);
+  const linkVisibility = useMapStore((s) => s.linkVisibility);
   const storageError = useMapStore((s) => s.storageError);
   const clearStorageError = useMapStore((s) => s.clearStorageError);
 
@@ -107,7 +107,7 @@ function MapView() {
         <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full border border-white/8 bg-zinc-950/75 px-4 py-1.5 text-[11.5px] text-zinc-500 backdrop-blur-sm">
           Click a node to inspect · double-click to rename · hover for{" "}
           <span className="text-zinc-400">+</span> to add a branch
-          {relationshipMode && (
+          {linkVisibility === "all" && (
             <span className="text-amber-200/80">
               {" "}
               · drag from a node’s lower dot to link it to another node

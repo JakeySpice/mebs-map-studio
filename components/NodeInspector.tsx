@@ -18,6 +18,7 @@ import {
   type EdgeType,
   type MebsNode,
   type NodeType,
+  type ZoneId,
 } from "@/types/graph";
 import { useMapStore } from "@/lib/store";
 import { templateById, templateByLabel } from "@/lib/templates";
@@ -51,6 +52,21 @@ const NODE_TYPE_ITEMS: Record<string, React.ReactNode> = Object.fromEntries(
 const EDGE_TYPE_ITEMS: Record<string, React.ReactNode> = Object.fromEntries(
   ALL_EDGE_TYPES.map((t) => [t, EDGE_TYPE_LABELS[t]])
 );
+
+const ZONE_CHOICE_LABELS: Record<ZoneId, string> = {
+  roots: "Roots — person & context",
+  trunk: "Trunk — formulation",
+  behaviour: "Behaviour side",
+  branches: "Branches — support plan",
+  canopy: "Canopy — quality of life",
+};
+
+/** Zone choices by tree depth: top-level domains can go anywhere; children
+ *  of a roots domain can only opt in/out of canopy promotion. */
+const ZONE_CHOICES: Record<1 | 2, ZoneId[]> = {
+  1: ["roots", "trunk", "behaviour", "branches", "canopy"],
+  2: ["canopy", "roots"],
+};
 
 function TypeDot({ type }: { type: NodeType }) {
   return (
@@ -134,6 +150,18 @@ function NodeInspectorContent({ nodeId }: { nodeId: string }) {
   const isRoot = node.type === "root";
   const descendantCount = countDescendants(map.nodes, node.id);
 
+  const depth = (() => {
+    const byId = new Map(map.nodes.map((n) => [n.id, n]));
+    let d = 0;
+    let cur: MebsNode | undefined = node;
+    while (cur?.parentId && d <= map.nodes.length) {
+      d += 1;
+      cur = byId.get(cur.parentId);
+    }
+    return d;
+  })();
+  const zoneChoices = depth === 1 || depth === 2 ? ZONE_CHOICES[depth] : null;
+
   const handleAddLink = () => {
     if (!linkTarget) return;
     if (linkDirection === "out") addCrossLink(node.id, linkTarget, linkType);
@@ -191,6 +219,40 @@ function NodeInspectorContent({ nodeId }: { nodeId: string }) {
                       <TypeDot type={t} />
                       {NODE_TYPE_INFO[t].label}
                     </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FieldRow>
+        )}
+
+        {!isRoot && zoneChoices && (
+          <FieldRow
+            label={depth === 1 ? "Botanical zone" : "Canopy promotion"}
+          >
+            <Select
+              items={{
+                auto: "Auto (inferred)",
+                ...Object.fromEntries(
+                  zoneChoices.map((z) => [z, ZONE_CHOICE_LABELS[z]])
+                ),
+              }}
+              value={node.mapZone ?? "auto"}
+              onValueChange={(value) => {
+                if (!value) return;
+                updateNode(node.id, {
+                  mapZone: value === "auto" ? undefined : (value as ZoneId),
+                });
+              }}
+            >
+              <SelectTrigger className="w-full border-white/10 bg-zinc-900/60">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Auto (inferred)</SelectItem>
+                {zoneChoices.map((z) => (
+                  <SelectItem key={z} value={z}>
+                    {ZONE_CHOICE_LABELS[z]}
                   </SelectItem>
                 ))}
               </SelectContent>

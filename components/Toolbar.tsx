@@ -14,13 +14,14 @@ import {
   Maximize,
   UnfoldVertical,
 } from "lucide-react";
-import type { MebsMap } from "@/types/graph";
-import { useMapStore } from "@/lib/store";
+import { layoutModeOf, type LayoutMode, type MebsMap } from "@/types/graph";
+import { BACKDROP_PAD } from "@/lib/layoutBotanical";
+import { useMapStore, type LinkVisibility } from "@/lib/store";
 import { exportMarkdown } from "@/lib/exportMarkdown";
 import { downloadDataUrl, downloadText, safeFilename } from "@/lib/download";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,13 +35,53 @@ export function Toolbar() {
   return <ToolbarContent key={map.id} map={map} />;
 }
 
+function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+  label,
+}: {
+  value: T;
+  options: Array<{ value: T; label: string }>;
+  onChange: (v: T) => void;
+  label: string;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className="flex items-center gap-0.5 rounded-lg border border-white/10 bg-zinc-900/70 p-0.5"
+    >
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          role="radio"
+          aria-checked={value === opt.value}
+          onClick={() => onChange(opt.value)}
+          className={cn(
+            "cursor-pointer rounded-md px-2 py-0.5 text-[11.5px] font-medium transition-colors",
+            value === opt.value
+              ? "bg-zinc-700 text-zinc-100"
+              : "text-zinc-400 hover:text-zinc-200"
+          )}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function ToolbarContent({ map }: { map: MebsMap }) {
-  const relationshipMode = useMapStore((s) => s.relationshipMode);
-  const setRelationshipMode = useMapStore((s) => s.setRelationshipMode);
+  const linkVisibility = useMapStore((s) => s.linkVisibility);
+  const setLinkVisibility = useMapStore((s) => s.setLinkVisibility);
+  const setLayoutMode = useMapStore((s) => s.setLayoutMode);
   const setAllCollapsed = useMapStore((s) => s.setAllCollapsed);
   const updateMapTitle = useMapStore((s) => s.updateMapTitle);
   const { fitView, getNodes, getNodesBounds } = useReactFlow();
 
+  const layoutMode = layoutModeOf(map);
   const [titleDraft, setTitleDraft] = React.useState(map.title);
 
   const commitTitle = () => {
@@ -50,6 +91,9 @@ function ToolbarContent({ map }: { map: MebsMap }) {
       setTitleDraft(map.title);
     }
   };
+
+  // MapCanvas refits automatically when layoutMode changes
+  const handleLayoutMode = (mode: LayoutMode) => setLayoutMode(mode);
 
   const handleExportJson = () => {
     downloadText(
@@ -72,7 +116,17 @@ function ToolbarContent({ map }: { map: MebsMap }) {
       ".react-flow__viewport"
     );
     if (!viewportEl) return;
-    const bounds = getNodesBounds(getNodes());
+    let bounds = getNodesBounds(getNodes());
+    if (layoutMode === "botanical") {
+      // keep the zone backdrops (which extend past the nodes) in frame
+      const pad = BACKDROP_PAD + 16;
+      bounds = {
+        x: bounds.x - pad,
+        y: bounds.y - pad,
+        width: bounds.width + pad * 2,
+        height: bounds.height + pad * 2,
+      };
+    }
     const aspect = bounds.height / Math.max(1, bounds.width);
     const imageWidth = Math.min(
       4096,
@@ -129,25 +183,39 @@ function ToolbarContent({ map }: { map: MebsMap }) {
           }
         }}
         aria-label="Map title"
-        className="w-56 rounded-md bg-transparent px-2 py-1 text-[13.5px] font-medium text-zinc-100 outline-none transition-colors hover:bg-white/5 focus:bg-white/8"
+        className="w-44 rounded-md bg-transparent px-2 py-1 text-[13.5px] font-medium text-zinc-100 outline-none transition-colors hover:bg-white/5 focus:bg-white/8"
       />
 
       <Separator orientation="vertical" className="h-5 bg-white/10" />
 
-      <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-[12.5px] text-zinc-300 transition-colors hover:bg-white/5">
-        <Switch
-          checked={relationshipMode}
-          onCheckedChange={(checked) => setRelationshipMode(Boolean(checked))}
+      <Segmented<LayoutMode>
+        label="Layout"
+        value={layoutMode}
+        onChange={handleLayoutMode}
+        options={[
+          { value: "botanical", label: "Botanical" },
+          { value: "outline", label: "Outline" },
+        ]}
+      />
+
+      <div className="flex items-center gap-1.5">
+        <span className="pl-1 text-[11px] text-zinc-500">Links</span>
+        <Segmented<LinkVisibility>
+          label="Relationship visibility"
+          value={linkVisibility}
+          onChange={setLinkVisibility}
+          options={[
+            { value: "off", label: "Off" },
+            { value: "selected", label: "Selected" },
+            { value: "all", label: "All" },
+          ]}
         />
-        <span className="select-none">
-          Relationships
-          {crossLinkCount > 0 && (
-            <span className="ml-1.5 rounded-full bg-amber-300/15 px-1.5 py-0.5 text-[10.5px] font-semibold text-amber-200">
-              {crossLinkCount}
-            </span>
-          )}
-        </span>
-      </label>
+        {crossLinkCount > 0 && (
+          <span className="rounded-full bg-amber-300/15 px-1.5 py-0.5 text-[10.5px] font-semibold text-amber-200">
+            {crossLinkCount}
+          </span>
+        )}
+      </div>
 
       <Separator orientation="vertical" className="h-5 bg-white/10" />
 

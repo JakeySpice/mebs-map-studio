@@ -47,7 +47,32 @@ export type EdgeType =
   | "is_replacement_for"
   | "is_measured_by"
   | "needs_data_about"
-  | "is_reviewed_by";
+  | "is_reviewed_by"
+  | "addressed_by"
+  | "builds_toward"
+  | "leads_to";
+
+/** How the user wants this map drawn. Absent on older maps → botanical. */
+export type LayoutMode = "outline" | "botanical";
+
+/** Botanical layout zones, bottom to top: roots → trunk (behaviour beside) → branches → canopy. */
+export type ZoneId = "roots" | "trunk" | "behaviour" | "branches" | "canopy";
+
+export const ZONE_IDS = [
+  "roots",
+  "trunk",
+  "behaviour",
+  "branches",
+  "canopy",
+] as const;
+
+export const ZONE_LABELS: Record<ZoneId, string> = {
+  roots: "Roots · Person & context",
+  trunk: "Trunk · Formulation",
+  behaviour: "Behaviour · Pressure points",
+  branches: "Branches · Support plan",
+  canopy: "Canopy · Quality of life & goals",
+};
 
 /** Pastel visual groupings, used semantically (spec §18). */
 export type VisualGroup =
@@ -74,6 +99,12 @@ export interface MebsNode {
   childTypeHint?: NodeType;
   /** links a seeded domain back to its template for quick-add suggestions */
   templateId?: string;
+  /**
+   * Botanical layout zone override. Normally inferred (template → label →
+   * content); set explicitly to pin a top-level domain to a zone, or on a
+   * child of a roots domain to force/forbid canopy promotion.
+   */
+  mapZone?: ZoneId;
 }
 
 /** Cross-link (clinical relationship). Tree structure lives in MebsNode.parentId. */
@@ -95,8 +126,14 @@ export interface MebsMap {
   version: string;
   createdAt: string;
   updatedAt: string;
+  /** absent on maps saved before v0.2 → treated as "botanical" */
+  layoutMode?: LayoutMode;
   nodes: MebsNode[];
   edges: MebsEdge[];
+}
+
+export function layoutModeOf(map: MebsMap): LayoutMode {
+  return map.layoutMode ?? "botanical";
 }
 
 export interface MapMeta {
@@ -164,9 +201,73 @@ export const EDGE_TYPE_LABELS: Record<EdgeType, string> = {
   is_measured_by: "is measured by",
   needs_data_about: "needs data about",
   is_reviewed_by: "is reviewed by",
+  addressed_by: "is addressed by",
+  builds_toward: "builds toward",
+  leads_to: "leads to",
 };
 
 export const ALL_EDGE_TYPES = Object.keys(EDGE_TYPE_LABELS) as EdgeType[];
+
+/** Compact badge text shown on semantic edges in the botanical view. */
+export const EDGE_BADGES: Record<EdgeType, string> = {
+  contributes_to: "contributes",
+  sets_the_occasion_for: "occasions",
+  evokes: "evokes",
+  maintained_by: "maintains",
+  communicates: "communicates",
+  indicates: "signals",
+  reduces_risk_of: "risk ↓",
+  increases_risk_of: "risk ↑",
+  supports: "supports",
+  requires: "requires",
+  requires_safeguard: "safeguard",
+  is_alternative_to: "alt to",
+  is_replacement_for: "replaces",
+  is_measured_by: "measured by",
+  needs_data_about: "needs data",
+  is_reviewed_by: "reviewed by",
+  addressed_by: "addressed by",
+  builds_toward: "toward QoL",
+  leads_to: "leads to",
+};
+
+/** Clinical tone of a relationship, used for edge/badge colour (never alone). */
+export type EdgeTone = "risk" | "support" | "data" | "neutral";
+
+export const EDGE_TONES: Record<EdgeType, EdgeTone> = {
+  contributes_to: "risk",
+  sets_the_occasion_for: "risk",
+  evokes: "risk",
+  maintained_by: "risk",
+  communicates: "neutral",
+  indicates: "neutral",
+  reduces_risk_of: "support",
+  increases_risk_of: "risk",
+  supports: "support",
+  requires: "neutral",
+  requires_safeguard: "neutral",
+  is_alternative_to: "support",
+  is_replacement_for: "support",
+  is_measured_by: "data",
+  needs_data_about: "data",
+  is_reviewed_by: "data",
+  addressed_by: "support",
+  builds_toward: "support",
+  leads_to: "risk",
+};
+
+export const EDGE_TONE_COLORS: Record<EdgeTone, string> = {
+  risk: "#dfb163",
+  support: "#8fd0ac",
+  data: "#a8b7cd",
+  neutral: "#cbb89a",
+};
+
+export function edgeBadgeLabel(edge: MebsEdge): string {
+  const custom = edge.label?.trim();
+  if (custom) return custom.length > 16 ? `${custom.slice(0, 16)}…` : custom;
+  return EDGE_BADGES[edge.type];
+}
 
 export function edgeDisplayLabel(edge: MebsEdge): string {
   return edge.label?.trim() ? edge.label : EDGE_TYPE_LABELS[edge.type];
