@@ -19,6 +19,21 @@ import {
 /** How much of the semantic relationship layer is drawn. */
 export type LinkVisibility = "off" | "selected" | "all";
 
+/**
+ * One undo/redo entry. The map is copy-on-write everywhere in this store, so
+ * holding a reference is cheap — no deep clone needed. Selection rides along so
+ * undo restores exactly what was highlighted before the mutation.
+ */
+interface HistoryEntry {
+  map: MebsMap;
+  selectedNodeId: string | null;
+  selectedEdgeId: string | null;
+}
+
+const HISTORY_LIMIT = 30;
+/** Per-keystroke edits from the same field collapse if within this window. */
+const COALESCE_MS = 1000;
+
 interface MapState {
   map: MebsMap | null;
   mapMissing: boolean;
@@ -28,6 +43,8 @@ interface MapState {
   /** node whose label is being edited inline on the canvas */
   editingNodeId: string | null;
   linkVisibility: LinkVisibility;
+  /** whether the relationships review panel is open (ephemeral, not persisted) */
+  relationshipsPanelOpen: boolean;
   /** asks the canvas to pan/zoom so these nodes are visible */
   focusRequest: { ids: string[]; nonce: number } | null;
 
@@ -35,11 +52,12 @@ interface MapState {
   closeMap: () => void;
   clearStorageError: () => void;
 
-  selectNode: (id: string | null) => void;
-  selectEdge: (id: string | null) => void;
+  selectNode: (id: string | null, opts?: { reveal?: boolean }) => void;
+  selectEdge: (id: string | null, opts?: { reveal?: boolean }) => void;
   clearSelection: () => void;
   setEditingNode: (id: string | null) => void;
   setLinkVisibility: (v: LinkVisibility) => void;
+  setRelationshipsPanelOpen: (open: boolean) => void;
   setLayoutMode: (mode: LayoutMode) => void;
 
   updateMapTitle: (title: string) => void;
@@ -53,6 +71,11 @@ interface MapState {
   addCrossLink: (source: string, target: string, type?: EdgeType) => string | null;
   updateEdge: (id: string, patch: Partial<MebsEdge>) => void;
   deleteEdge: (id: string) => void;
+
+  canUndo: () => boolean;
+  canRedo: () => boolean;
+  undo: () => void;
+  redo: () => void;
 }
 
 type CommitResult =
@@ -67,6 +90,54 @@ function commit(map: MebsMap): CommitResult {
   } catch (err) {
     return { storageError: describeStorageError(err) };
   }
+}
+
+/**
+ * In-memory undo/redo, intentionally outside the reactive store: history is
+ * never persisted and pushing a snapshot shouldn't trigger React re-renders.
+ * `undoStack` holds states to return *to*; `redoStack` holds states undone
+ * away from. Each mutating action snapshots the current state before changing
+ * it (see `pushHistory`), which also clears the redo stack.
+ */
+const undoStack: HistoryEntry[] = [];
+const redoStack: HistoryEntry[] = [];
+/** Identifies the last coalesced edit so rapid same-field edits collapse. */
+let lastPush: { key: string; at: number } | null = null;
+
+/**
+ * Snapshot the current state before a mutation. `coalesceKey` (e.g.
+ * "updateNode:<id>") lets consecutive keystroke-level edits to the same target
+ * within COALESCE_MS share a single undo step: the first push captures the
+ * pre-edit state, later ones are skipped. Pass no key for atomic actions
+ * (delete, collapse, …) that should always be their own step.
+ */
+function pushHistory(state: MapState, coalesceKey?: string) {
+  if (!state.map) return;
+  const now = Date.now();
+  if (
+    coalesceKey &&
+    lastPush &&
+    lastPush.key === coalesceKey &&
+    now - lastPush.at < COALESCE_MS &&
+    undoStack.length > 0
+  ) {
+    lastPush.at = now;
+    return;
+  }
+  undoStack.push({
+    map: state.map,
+    selectedNodeId: state.selectedNodeId,
+    selectedEdgeId: state.selectedEdgeId,
+  });
+  if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
+  redoStack.length = 0;
+  lastPush = coalesceKey ? { key: coalesceKey, at: now } : null;
+}
+
+function resetHistory() {
+  undoStack.length = 0;
+  redoStack.length = 0;
+  lastPush = null;
 }
 
 /** ids of `id` plus all its descendants */
@@ -98,9 +169,11 @@ export const useMapStore = create<MapState>((set, get) => ({
   selectedEdgeId: null,
   editingNodeId: null,
   linkVisibility: "selected",
+  relationshipsPanelOpen: false,
   focusRequest: null,
 
   openMap: (id) => {
+    resetHistory();
     const map = loadMap(id);
     set({
       map,
@@ -110,10 +183,12 @@ export const useMapStore = create<MapState>((set, get) => ({
       selectedEdgeId: null,
       editingNodeId: null,
       linkVisibility: "selected",
+      relationshipsPanelOpen: false,
     });
   },
 
-  closeMap: () =>
+  closeMap: () => {
+    resetHistory();
     set({
       map: null,
       mapMissing: false,
@@ -122,20 +197,115 @@ export const useMapStore = create<MapState>((set, get) => ({
       selectedEdgeId: null,
       editingNodeId: null,
       linkVisibility: "selected",
-    }),
+      relationshipsPanelOpen: false,
+    });
+  },
 
   clearStorageError: () => set({ storageError: null }),
 
-  selectNode: (id) =>
-    set({ selectedNodeId: id, selectedEdgeId: null }),
+  selectNode: (id, opts) => {
+    if (!id || !opts?.reveal) {
+      set({ selectedNodeId: id, selectedEdgeId: null });
+      return;
+    }
+    // Reveal: expand any collapsed ancestors so the node is on-screen, then
+    // ask the canvas to centre it. Ancestor-expansion is treated as a
+    // navigation side-effect, not a user edit, so it is NOT pushed onto the
+    // undo stack — undo should reverse content changes, not re-hide a branch
+    // the user just navigated into. It is still committed so the expanded
+    // state survives a reload.
+    const { map } = get();
+    if (!map) {
+      set({ selectedNodeId: id, selectedEdgeId: null });
+      return;
+    }
+    const byId = new Map(map.nodes.map((n) => [n.id, n]));
+    const toExpand = new Set<string>();
+    let cur = byId.get(id)?.parentId
+      ? byId.get(byId.get(id)!.parentId!)
+      : undefined;
+    let guard = 0;
+    while (cur && guard++ <= map.nodes.length) {
+      if (cur.collapsed) toExpand.add(cur.id);
+      cur = cur.parentId ? byId.get(cur.parentId) : undefined;
+    }
+    const focusRequest = { ids: [id], nonce: Date.now() };
+    if (toExpand.size === 0) {
+      set({ selectedNodeId: id, selectedEdgeId: null, focusRequest });
+      return;
+    }
+    const committed = commit({
+      ...map,
+      nodes: map.nodes.map((n) =>
+        toExpand.has(n.id) ? { ...n, collapsed: false } : n
+      ),
+    });
+    if (!("map" in committed)) {
+      // Even if persistence fails, still select + focus so navigation works.
+      set({ ...committed, selectedNodeId: id, selectedEdgeId: null, focusRequest });
+      return;
+    }
+    set({ ...committed, selectedNodeId: id, selectedEdgeId: null, focusRequest });
+  },
 
-  selectEdge: (id) =>
+  selectEdge: (id, opts) => {
     // selecting an edge implies wanting to see it: lift visibility off "off"
-    set((s) => ({
+    const liftVisibility = (v: LinkVisibility): LinkVisibility =>
+      v === "off" ? "selected" : v;
+    if (!id || !opts?.reveal) {
+      set((s) => ({
+        selectedEdgeId: id,
+        selectedNodeId: null,
+        linkVisibility: liftVisibility(s.linkVisibility),
+      }));
+      return;
+    }
+    // Reveal: mirror selectNode — expand any collapsed ancestors of BOTH
+    // endpoints so the edge is on-screen, then frame the pair. Ancestor
+    // expansion is navigation, not a content edit, so it is NOT pushed onto the
+    // undo stack; it is still committed so the expanded state survives reload.
+    const { map, linkVisibility } = get();
+    const edge = map?.edges.find((e) => e.id === id);
+    if (!map || !edge) {
+      set((s) => ({
+        selectedEdgeId: id,
+        selectedNodeId: null,
+        linkVisibility: liftVisibility(s.linkVisibility),
+      }));
+      return;
+    }
+    const byId = new Map(map.nodes.map((n) => [n.id, n]));
+    const toExpand = new Set<string>();
+    for (const endpoint of [edge.source, edge.target]) {
+      let cur = byId.get(endpoint)?.parentId
+        ? byId.get(byId.get(endpoint)!.parentId!)
+        : undefined;
+      let guard = 0;
+      while (cur && guard++ <= map.nodes.length) {
+        if (cur.collapsed) toExpand.add(cur.id);
+        cur = cur.parentId ? byId.get(cur.parentId) : undefined;
+      }
+    }
+    const focusRequest = { ids: [edge.source, edge.target], nonce: Date.now() };
+    const next = {
       selectedEdgeId: id,
       selectedNodeId: null,
-      linkVisibility: s.linkVisibility === "off" ? "selected" : s.linkVisibility,
-    })),
+      linkVisibility: liftVisibility(linkVisibility),
+      focusRequest,
+    };
+    if (toExpand.size === 0) {
+      set(next);
+      return;
+    }
+    const committed = commit({
+      ...map,
+      nodes: map.nodes.map((n) =>
+        toExpand.has(n.id) ? { ...n, collapsed: false } : n
+      ),
+    });
+    // Even if persistence fails, still select + focus so navigation works.
+    set({ ...committed, ...next });
+  },
 
   clearSelection: () =>
     set({ selectedNodeId: null, selectedEdgeId: null, editingNodeId: null }),
@@ -149,23 +319,32 @@ export const useMapStore = create<MapState>((set, get) => ({
       selectedEdgeId: v === "off" ? null : s.selectedEdgeId,
     })),
 
+  setRelationshipsPanelOpen: (open) => set({ relationshipsPanelOpen: open }),
+
   setLayoutMode: (mode) => {
-    const { map } = get();
+    const state = get();
+    const { map } = state;
     if (!map || (map.layoutMode ?? "botanical") === mode) return;
+    pushHistory(state);
     set(commit({ ...map, layoutMode: mode }));
   },
 
   updateMapTitle: (title) => {
-    const { map } = get();
+    const state = get();
+    const { map } = state;
     if (!map) return;
+    // Title is edited keystroke-by-keystroke in the toolbar → coalesce.
+    pushHistory(state, "updateMapTitle");
     set(commit({ ...map, title: title.trim() || map.title }));
   },
 
   addChild: (parentId, partial) => {
-    const { map } = get();
+    const state = get();
+    const { map } = state;
     if (!map) return null;
     const parent = map.nodes.find((n) => n.id === parentId);
     if (!parent) return null;
+    pushHistory(state);
     const siblings = map.nodes.filter((n) => n.parentId === parentId);
     const nextOrder =
       siblings.length > 0 ? Math.max(...siblings.map((s) => s.order)) + 1 : 0;
@@ -198,8 +377,12 @@ export const useMapStore = create<MapState>((set, get) => ({
   },
 
   updateNode: (id, patch) => {
-    const { map } = get();
+    const state = get();
+    const { map } = state;
     if (!map) return;
+    // Inspector fields fire onChange per keystroke → coalesce per node so
+    // typing a sentence is a single undo step.
+    pushHistory(state, `updateNode:${id}`);
     set(
       commit({
         ...map,
@@ -209,10 +392,12 @@ export const useMapStore = create<MapState>((set, get) => ({
   },
 
   deleteNode: (id) => {
-    const { map, selectedNodeId, selectedEdgeId } = get();
+    const state = get();
+    const { map, selectedNodeId, selectedEdgeId } = state;
     if (!map) return;
     const node = map.nodes.find((n) => n.id === id);
     if (!node || node.type === "root") return;
+    pushHistory(state);
     const doomed = subtreeIds(map.nodes, id);
     const survivingEdges = map.edges.filter(
       (e) => !doomed.has(e.source) && !doomed.has(e.target)
@@ -238,10 +423,12 @@ export const useMapStore = create<MapState>((set, get) => ({
   },
 
   toggleCollapsed: (id) => {
-    const { map } = get();
+    const state = get();
+    const { map } = state;
     if (!map) return;
     const node = map.nodes.find((n) => n.id === id);
     if (!node) return;
+    pushHistory(state);
     const expanding = node.collapsed;
     const committed = commit({
       ...map,
@@ -268,8 +455,10 @@ export const useMapStore = create<MapState>((set, get) => ({
   },
 
   setAllCollapsed: (collapsed) => {
-    const { map } = get();
+    const state = get();
+    const { map } = state;
     if (!map) return;
+    pushHistory(state);
     set(
       commit({
         ...map,
@@ -283,12 +472,14 @@ export const useMapStore = create<MapState>((set, get) => ({
   },
 
   addCrossLink: (source, target, type = "contributes_to") => {
-    const { map } = get();
+    const state = get();
+    const { map } = state;
     if (!map || source === target) return null;
     const exists = map.edges.some(
       (e) => e.source === source && e.target === target && e.type === type
     );
     if (exists) return null;
+    pushHistory(state);
     const edge: MebsEdge = { id: newId(), source, target, type };
     const committed = commit({ ...map, edges: [...map.edges, edge] });
     if (!("map" in committed)) {
@@ -305,8 +496,11 @@ export const useMapStore = create<MapState>((set, get) => ({
   },
 
   updateEdge: (id, patch) => {
-    const { map } = get();
+    const state = get();
+    const { map } = state;
     if (!map) return;
+    // Custom-label / notes fields fire per keystroke → coalesce per edge.
+    pushHistory(state, `updateEdge:${id}`);
     set(
       commit({
         ...map,
@@ -316,8 +510,10 @@ export const useMapStore = create<MapState>((set, get) => ({
   },
 
   deleteEdge: (id) => {
-    const { map, selectedEdgeId } = get();
+    const state = get();
+    const { map, selectedEdgeId } = state;
     if (!map) return;
+    pushHistory(state);
     const committed = commit({
       ...map,
       edges: map.edges.filter((e) => e.id !== id),
@@ -329,6 +525,54 @@ export const useMapStore = create<MapState>((set, get) => ({
     set({
       ...committed,
       selectedEdgeId: selectedEdgeId === id ? null : selectedEdgeId,
+    });
+  },
+
+  canUndo: () => undoStack.length > 0,
+  canRedo: () => redoStack.length > 0,
+
+  undo: () => {
+    const state = get();
+    const prev = undoStack.pop();
+    if (!prev || !state.map) return;
+    // Park the present on the redo stack before restoring the past.
+    redoStack.push({
+      map: state.map,
+      selectedNodeId: state.selectedNodeId,
+      selectedEdgeId: state.selectedEdgeId,
+    });
+    lastPush = null;
+    const committed = commit(prev.map);
+    if (!("map" in committed)) {
+      set(committed);
+      return;
+    }
+    set({
+      ...committed,
+      selectedNodeId: prev.selectedNodeId,
+      selectedEdgeId: prev.selectedEdgeId,
+    });
+  },
+
+  redo: () => {
+    const state = get();
+    const next = redoStack.pop();
+    if (!next || !state.map) return;
+    undoStack.push({
+      map: state.map,
+      selectedNodeId: state.selectedNodeId,
+      selectedEdgeId: state.selectedEdgeId,
+    });
+    lastPush = null;
+    const committed = commit(next.map);
+    if (!("map" in committed)) {
+      set(committed);
+      return;
+    }
+    set({
+      ...committed,
+      selectedNodeId: next.selectedNodeId,
+      selectedEdgeId: next.selectedEdgeId,
     });
   },
 }));

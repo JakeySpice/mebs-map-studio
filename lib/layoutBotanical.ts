@@ -1,3 +1,4 @@
+import type { FitViewOptions } from "@xyflow/react";
 import type { MebsMap, MebsNode, ZoneId } from "@/types/graph";
 import {
   buildChildrenMap,
@@ -855,6 +856,116 @@ export function layoutOutlineUnified(map: Pick<MebsMap, "nodes">): BotanicalLayo
     zoneRects: [],
     apex: null,
   };
+}
+
+/* ------------------- fit-to-view chrome compensation -------------------- *
+ * The floating toolbar (top) and the inspector aside (right, when open) sit
+ * on top of the canvas. xyflow 12.11's FitViewOptions.padding accepts a
+ * per-side object with px-string values that reserve literal screen pixels on
+ * that side (see parsePadding in @xyflow/system), so we inset the fit by the
+ * chrome's real footprint instead of a symmetric proportional pad. One helper
+ * builds the options for every fitView call in MapCanvas and the Toolbar.
+ * ----------------------------------------------------------------------- */
+
+/** top-4 (16px) + ~52px toolbar + breathing room */
+const CHROME_TOP_PX = 76;
+/** right-4 (16px) + 340px inspector + breathing room */
+const CHROME_RIGHT_PX = 360;
+/** comfortable base inset on the unobstructed sides */
+const CHROME_BASE_PX = 32;
+
+export interface FitChromeOpts {
+  /** inspector aside is mounted (a node or edge is selected) */
+  inspectorOpen: boolean;
+  mode: LayoutModeArg;
+  /** merged into the result (duration, nodes, maxZoom overrides, …) */
+  extra?: FitViewOptions;
+}
+
+type LayoutModeArg = "botanical" | "outline";
+
+/**
+ * Build fitView options whose padding clears the floating chrome. maxZoom only
+ * stops a fit from zooming IN past readable scale — it cannot stop a fit-all
+ * from zooming OUT (outline's sliver problem; that default framing is handled
+ * by outlineViewport below).
+ */
+export function fitChromeOptions({
+  inspectorOpen,
+  mode,
+  extra,
+}: FitChromeOpts): FitViewOptions {
+  const padding = {
+    top: `${CHROME_TOP_PX}px`,
+    bottom: `${CHROME_BASE_PX}px`,
+    left: `${CHROME_BASE_PX}px`,
+    right: `${inspectorOpen ? CHROME_RIGHT_PX : CHROME_BASE_PX}px`,
+  } as const;
+  const base: FitViewOptions =
+    mode === "botanical"
+      ? { padding, maxZoom: 0.85 }
+      : { padding, maxZoom: 0.95 };
+  return { ...base, ...extra };
+}
+
+/* ----------------------- outline default framing ------------------------ *
+ * The outline is one tall narrow column. A fit-all zooms out until the whole
+ * column fits → an unreadable vertical sliver in a half-empty canvas (spec
+ * v0.3 P2.5). Default framing instead fits the column's WIDTH (capped at
+ * 0.95) and anchors its top just below the toolbar, letting the height
+ * overflow for the user to pan through.
+ * ------------------------------------------------------------------------ */
+
+export function outlineViewport(
+  layout: BotanicalLayout,
+  paneWidth: number,
+  inspectorOpen: boolean
+): { x: number; y: number; zoom: number } | null {
+  if (layout.items.length === 0 || paneWidth <= 0) return null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  for (const it of layout.items) {
+    if (it.x < minX) minX = it.x;
+    if (it.y < minY) minY = it.y;
+    if (it.x + it.width > maxX) maxX = it.x + it.width;
+  }
+  const left = CHROME_BASE_PX;
+  const right = inspectorOpen ? CHROME_RIGHT_PX : CHROME_BASE_PX;
+  const availW = Math.max(1, paneWidth - left - right);
+  const colW = Math.max(1, maxX - minX);
+  const zoom = Math.min(0.95, availW / colW);
+  return {
+    x: left + (availW - colW * zoom) / 2 - minX * zoom,
+    y: CHROME_TOP_PX - minY * zoom,
+    zoom,
+  };
+}
+
+/* ----------------------- hidden-link lifting --------------------------- *
+ * Relationship edges that dive into a collapsed branch are summarised onto
+ * the nearest visible ancestor of each hidden endpoint, so "All" mode never
+ * silently drops links the toolbar badge still counts.
+ * ----------------------------------------------------------------------- */
+
+/**
+ * Walk parentId from `id` until an ancestor is in `visibleIds`. Returns the id
+ * itself when already visible, or null if the whole chain is hidden (shouldn't
+ * happen once a root is rendered, but guarded for safety).
+ */
+export function nearestVisibleAncestor(
+  id: string,
+  parentOf: Map<string, string | null>,
+  visibleIds: Set<string>
+): string | null {
+  let cur: string | null = id;
+  const seen = new Set<string>();
+  while (cur && !seen.has(cur)) {
+    if (visibleIds.has(cur)) return cur;
+    seen.add(cur);
+    cur = parentOf.get(cur) ?? null;
+  }
+  return null;
 }
 
 // re-export for canvas convenience

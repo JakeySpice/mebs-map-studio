@@ -320,7 +320,7 @@ function NodeInspectorContent({ nodeId }: { nodeId: string }) {
               onClick={() => {
                 const id = addChild(node.id);
                 if (id) {
-                  selectNode(id);
+                  selectNode(id, { reveal: true });
                   setEditingNode(id);
                 }
               }}
@@ -334,7 +334,8 @@ function NodeInspectorContent({ nodeId }: { nodeId: string }) {
                 <li key={c.id}>
                   <button
                     type="button"
-                    onClick={() => selectNode(c.id)}
+                    onClick={() => selectNode(c.id, { reveal: true })}
+                    title={c.label}
                     className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] text-zinc-300 transition-colors hover:bg-white/5 hover:text-zinc-100"
                   >
                     <CornerDownRight className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
@@ -370,11 +371,20 @@ function NodeInspectorContent({ nodeId }: { nodeId: string }) {
                 const outgoing = e.source === node.id;
                 const otherId = outgoing ? e.target : e.source;
                 const other = map.nodes.find((n) => n.id === otherId);
+                const relLabel = e.label?.trim()
+                  ? e.label
+                  : EDGE_TYPE_LABELS[e.type];
+                const otherLabel = other?.label ?? "?";
+                // Rows truncate; expose the full relationship as a tooltip.
+                const rowTitle = outgoing
+                  ? `this ${relLabel} ${otherLabel}`
+                  : `${otherLabel} ${relLabel} this`;
                 return (
                   <li key={e.id}>
                     <button
                       type="button"
                       onClick={() => selectEdge(e.id)}
+                      title={rowTitle}
                       className="flex w-full cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[12px] transition-colors hover:bg-white/5"
                     >
                       {!outgoing && (

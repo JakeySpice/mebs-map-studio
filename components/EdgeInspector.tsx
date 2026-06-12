@@ -44,7 +44,8 @@ export function EdgeInspector({ edgeId }: { edgeId: string }) {
     node ? (
       <button
         type="button"
-        onClick={() => selectNode(node.id)}
+        onClick={() => selectNode(node.id, { reveal: true })}
+        title={node.label}
         className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-zinc-900/60 px-2.5 py-2 text-left transition-colors hover:border-white/25"
       >
         <span

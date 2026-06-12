@@ -11,11 +11,12 @@ import {
   FoldVertical,
   Home,
   Image as ImageIcon,
+  ListTree,
   Maximize,
   UnfoldVertical,
 } from "lucide-react";
 import { layoutModeOf, type LayoutMode, type MebsMap } from "@/types/graph";
-import { BACKDROP_PAD } from "@/lib/layoutBotanical";
+import { BACKDROP_PAD, fitChromeOptions } from "@/lib/layoutBotanical";
 import { useMapStore, type LinkVisibility } from "@/lib/store";
 import { exportMarkdown } from "@/lib/exportMarkdown";
 import { downloadDataUrl, downloadText, safeFilename } from "@/lib/download";
@@ -76,12 +77,23 @@ function Segmented<T extends string>({
 function ToolbarContent({ map }: { map: MebsMap }) {
   const linkVisibility = useMapStore((s) => s.linkVisibility);
   const setLinkVisibility = useMapStore((s) => s.setLinkVisibility);
+  const relationshipsPanelOpen = useMapStore((s) => s.relationshipsPanelOpen);
+  const setRelationshipsPanelOpen = useMapStore(
+    (s) => s.setRelationshipsPanelOpen
+  );
   const setLayoutMode = useMapStore((s) => s.setLayoutMode);
   const setAllCollapsed = useMapStore((s) => s.setAllCollapsed);
   const updateMapTitle = useMapStore((s) => s.updateMapTitle);
+  const selectedNodeId = useMapStore((s) => s.selectedNodeId);
+  const selectedEdgeId = useMapStore((s) => s.selectedEdgeId);
   const { fitView, getNodes, getNodesBounds } = useReactFlow();
 
   const layoutMode = layoutModeOf(map);
+  // inspector aside occupies the right edge while a node/edge is selected — fit
+  // must clear it (shared helper, same insets as MapCanvas)
+  const inspectorOpen = selectedNodeId !== null || selectedEdgeId !== null;
+  const fitOpts = (extra: { duration: number }) =>
+    fitChromeOptions({ inspectorOpen, mode: layoutMode, extra });
   const [titleDraft, setTitleDraft] = React.useState(map.title);
 
   const commitTitle = () => {
@@ -183,7 +195,10 @@ function ToolbarContent({ map }: { map: MebsMap }) {
           }
         }}
         aria-label="Map title"
-        className="w-44 rounded-md bg-transparent px-2 py-1 text-[13.5px] font-medium text-zinc-100 outline-none transition-colors hover:bg-white/5 focus:bg-white/8"
+        size={1}
+        className="rounded-md bg-transparent px-2 py-1 text-[13.5px] font-medium text-zinc-100 outline-none transition-colors hover:bg-white/5 focus:bg-white/8"
+        // grow with the title text, clamped so it can't crowd the toolbar
+        style={{ width: `clamp(7rem, ${titleDraft.length + 2}ch, 22rem)` }}
       />
 
       <Separator orientation="vertical" className="h-5 bg-white/10" />
@@ -215,6 +230,19 @@ function ToolbarContent({ map }: { map: MebsMap }) {
             {crossLinkCount}
           </span>
         )}
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          title="Review relationships"
+          aria-pressed={relationshipsPanelOpen}
+          className={cn(
+            "text-zinc-400 hover:text-zinc-100",
+            relationshipsPanelOpen && "bg-white/10 text-zinc-100"
+          )}
+          onClick={() => setRelationshipsPanelOpen(!relationshipsPanelOpen)}
+        >
+          <ListTree />
+        </Button>
       </div>
 
       <Separator orientation="vertical" className="h-5 bg-white/10" />
@@ -226,9 +254,7 @@ function ToolbarContent({ map }: { map: MebsMap }) {
         className="text-zinc-400 hover:text-zinc-100"
         onClick={() => {
           setAllCollapsed(false);
-          requestAnimationFrame(() =>
-            fitView({ padding: 0.1, duration: 350 })
-          );
+          requestAnimationFrame(() => fitView(fitOpts({ duration: 350 })));
         }}
       >
         <UnfoldVertical />
@@ -240,9 +266,7 @@ function ToolbarContent({ map }: { map: MebsMap }) {
         className="text-zinc-400 hover:text-zinc-100"
         onClick={() => {
           setAllCollapsed(true);
-          requestAnimationFrame(() =>
-            fitView({ padding: 0.15, duration: 350 })
-          );
+          requestAnimationFrame(() => fitView(fitOpts({ duration: 350 })));
         }}
       >
         <FoldVertical />
@@ -252,7 +276,7 @@ function ToolbarContent({ map }: { map: MebsMap }) {
         size="icon-sm"
         title="Fit map to view"
         className="text-zinc-400 hover:text-zinc-100"
-        onClick={() => fitView({ padding: 0.12, duration: 350 })}
+        onClick={() => fitView(fitOpts({ duration: 350 }))}
       >
         <Maximize />
       </Button>

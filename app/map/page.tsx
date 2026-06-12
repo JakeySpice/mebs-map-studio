@@ -9,6 +9,8 @@ import { MapCanvas } from "@/components/MapCanvas";
 import { Toolbar } from "@/components/Toolbar";
 import { NodeInspector } from "@/components/NodeInspector";
 import { EdgeInspector } from "@/components/EdgeInspector";
+import { QuickFind } from "@/components/QuickFind";
+import { RelationshipsPanel } from "@/components/RelationshipsPanel";
 import { Button } from "@/components/ui/button";
 
 // The map id travels as ?id= rather than a path segment so the whole app can
@@ -36,14 +38,62 @@ function MapView() {
   const selectedNodeId = useMapStore((s) => s.selectedNodeId);
   const selectedEdgeId = useMapStore((s) => s.selectedEdgeId);
   const linkVisibility = useMapStore((s) => s.linkVisibility);
+  const relationshipsPanelOpen = useMapStore((s) => s.relationshipsPanelOpen);
   const storageError = useMapStore((s) => s.storageError);
   const clearStorageError = useMapStore((s) => s.clearStorageError);
+  const [quickFindOpen, setQuickFindOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (!id) return;
     openMap(id);
     return () => closeMap();
   }, [id, openMap, closeMap]);
+
+  // Undo/redo shortcuts. Ignore keystrokes aimed at a text field (toolbar
+  // title, inspector inputs, inline node-rename) so the platform's own
+  // text-undo keeps working there.
+  React.useEffect(() => {
+    const isTextTarget = (el: EventTarget | null) => {
+      if (!(el instanceof HTMLElement)) return false;
+      const tag = el.tagName;
+      return (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        el.isContentEditable
+      );
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod || e.altKey) return;
+      const key = e.key.toLowerCase();
+      const isUndo = key === "z" && !e.shiftKey;
+      const isRedo = (key === "z" && e.shiftKey) || key === "y";
+      if (!isUndo && !isRedo) return;
+      if (isTextTarget(e.target)) return;
+      const store = useMapStore.getState();
+      if (!store.map) return;
+      e.preventDefault();
+      if (isRedo) store.redo();
+      else store.undo();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  // Quick-find (Ctrl/Cmd+K). Kept separate from the undo handler: the browser
+  // binds Ctrl+K, so always preventDefault, and unlike undo it may fire while a
+  // text field is focused (no input-target guard). The undo effect ignores any
+  // non-z/y key, so the two never collide.
+  React.useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setQuickFindOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   if (!id || mapMissing) {
     return (
@@ -92,6 +142,13 @@ function MapView() {
           </div>
         )}
 
+        {/* relationships review panel (left — the inspector owns the right) */}
+        {relationshipsPanelOpen && (
+          <aside className="absolute top-20 bottom-4 left-4 z-20 w-[320px] overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/90 shadow-[0_8px_30px_rgba(0,0,0,0.5)] backdrop-blur-md">
+            <RelationshipsPanel />
+          </aside>
+        )}
+
         {/* inspector panel */}
         {inspectorOpen && (
           <aside className="absolute top-20 right-4 bottom-4 z-20 w-[340px] overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/90 shadow-[0_8px_30px_rgba(0,0,0,0.5)] backdrop-blur-md">
@@ -101,6 +158,11 @@ function MapView() {
               <EdgeInspector edgeId={selectedEdgeId} />
             ) : null}
           </aside>
+        )}
+
+        {/* mounted only while open so each invocation starts with fresh state */}
+        {quickFindOpen && (
+          <QuickFind open onClose={() => setQuickFindOpen(false)} />
         )}
 
         {/* hints */}
