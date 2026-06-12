@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Escalation Pathway — MEBS minimal variations</title>
+<style>
+  :root {
+    --bg: #131318;
+    --surface: #1d1d26;
+    --border: rgba(255,255,255,.08);
+    --text: #e9e9f2;
+    --muted: #9a9ab0;
+    --lavender: #c4b5fd;
+    --blue: #93c5fd;
+    --mint: #86efac;
+    --rose: #fda4af;
+    --amber: #fcd34d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  /* ---------- header ---------- */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 12px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header a.back {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  header a.back:hover { color: var(--text); }
+  header h1 {
+    font-size: 16px;
+    margin: 0;
+    font-weight: 650;
+    white-space: nowrap;
+  }
+  header .tagline { color: var(--muted); font-size: 13px; }
+  header .disclaimer {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 12px;
+    white-space: nowrap;
+  }
+  header .actions { display: flex; gap: 8px; }
+  button {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px 12px;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button:hover { border-color: rgba(255,255,255,.22); }
+  /* ---------- page ---------- */
+  main { padding: 20px; max-width: 1500px; margin: 0 auto; }
+  .case-line { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  /* ---------- strengths strip ---------- */
+  .strengths {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .strengths .label { color: var(--mint); font-weight: 600; font-size: 13px; }
+  /* ---------- chips ---------- */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 13px;
+    border: 1px solid;
+    cursor: pointer;
+    max-width: 100%;
+  }
+  .chip .txt { word-break: break-word; }
+  .chip .del {
+    background: none;
+    border: none;
+    color: inherit;
+    opacity: .45;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 2px;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  .chip .del:hover { opacity: 1; }
+  .chip .badge {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    padding: 1px 7px;
+    opacity: .8;
+    white-space: nowrap;
+  }
+  .tint-blue     { background: rgba(147,197,253,.10); border-color: rgba(147,197,253,.35); color: var(--blue); }
+  .tint-amber    { background: rgba(252,211,77,.10);  border-color: rgba(252,211,77,.35);  color: var(--amber); }
+  .tint-rose     { background: rgba(253,164,175,.10); border-color: rgba(253,164,175,.35); color: var(--rose); }
+  .tint-mint     { background: rgba(134,239,172,.10); border-color: rgba(134,239,172,.35); color: var(--mint); }
+  .tint-lavender { background: rgba(196,181,253,.10); border-color: rgba(196,181,253,.35); color: var(--lavender); }
+  .chip .txt { color: var(--text); }
+  /* ---------- add button / inline input ---------- */
+  .add-btn {
+    background: none;
+    border: 1px dashed var(--border);
+    color: var(--muted);
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  .add-btn:hover { color: var(--text); border-color: rgba(255,255,255,.25); }
+  input.inline {
+    background: var(--bg);
+    border: 1px solid rgba(255,255,255,.25);
+    border-radius: 10px;
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    padding: 6px 10px;
+    width: 100%;
+    min-width: 120px;
+  }
+  input.inline:focus { outline: none; border-color: var(--lavender); }
+  /* ---------- pathway ---------- */
+  .pathway-scroll { overflow-x: auto; padding-bottom: 8px; }
+  .pathway {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    min-width: 1100px;
+  }
+  .stage {
+    flex: 1 1 0;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .arrow {
+    flex: 0 0 30px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 26px;
+  }
+  .arrow svg { display: block; }
+  .stage-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 3px solid;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+  }
+  .stage-card.c-blue  { border-top-color: var(--blue); }
+  .stage-card.c-amber { border-top-color: var(--amber); }
+  .stage-card.c-rose  { border-top-color: var(--rose); }
+  .stage-card.c-mint  { border-top-color: var(--mint); }
+  .stage-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 2px;
+  }
+  .stage-num {
+    font-size: 11px;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+  .stage-title { font-weight: 650; font-size: 14px; }
+  .chip-list { display: flex; flex-direction: column; gap: 6px; }
+  /* ---------- paired supporter response card ---------- */
+  .pair-link {
+    display: flex;
+    justify-content: center;
+    color: var(--mint);
+    opacity: .6;
+    margin: -2px 0;
+  }
+  .responses {
+    background: rgba(134,239,172,.06);
+    border: 1px solid rgba(134,239,172,.30);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .responses .r-title {
+    color: var(--mint);
+    font-size: 12px;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+  .pair-spacer { height: 12px; } /* keeps stages 1–2 aligned where no response card exists */
+  /* ---------- hypotheses strip ---------- */
+  .hypo {
+    margin-top: 22px;
+    background: var(--surface);
+    border: 1px solid rgba(196,181,253,.30);
+    border-radius: 14px;
+    padding: 14px 16px;
+  }
+  .hypo h2 {
+    margin: 0 0 4px;
+    font-size: 14px;
+    color: var(--lavender);
+    font-weight: 650;
+  }
+  .hypo .hint { color: var(--muted); font-size: 12px; margin: 0 0 10px; }
+  .hypo .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  footer {
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+    padding: 18px 20px 26px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="back" href="./index.html">&larr; All variations</a>
+  <h1>Escalation Pathway</h1>
+  <span class="tagline">The timeline a team needs in the room</span>
+  <span class="disclaimer">A thinking tool — not a BSP generator. Data stays in this browser.</span>
+  <span class="actions">
+    <button id="btn-md">Export Markdown</button>
+    <button id="btn-json">Export JSON</button>
+    <button id="btn-reset">Reset sample</button>
+  </span>
+</header>
+
+<main>
+  <p class="case-line">Sample case: <strong>Alex (pseudonym)</strong> — a de-identified, fictional case for exploring the tool.</p>
+
+  <div class="strengths" id="strengths-strip">
+    <span class="label">Strengths to lean on:</span>
+  </div>
+
+  <div class="pathway-scroll">
+    <div class="pathway" id="pathway"></div>
+  </div>
+
+  <section class="hypo">
+    <h2>Why we think it happens</h2>
+    <p class="hint">Working hypotheses only — these may change as the team learns more.</p>
+    <div class="chip-row" id="hypo-row"></div>
+  </section>
+</main>
+
+<footer>Everything here stays on this device, in this browser. Nothing is uploaded anywhere.</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  var STORE_KEY = 'mebs-min-pathway';
+
+  var STAGES = [
+    { key: 'setting',    num: 1, title: 'Setting events',      colour: 'blue',  hasResponses: false },
+    { key: 'triggers',   num: 2, title: 'Triggers',            colour: 'blue',  hasResponses: false },
+    { key: 'early',      num: 3, title: 'Early warning signs', colour: 'amber', hasResponses: true  },
+    { key: 'escalation', num: 4, title: 'Escalation',          colour: 'rose',  hasResponses: true  },
+    { key: 'recovery',   num: 5, title: 'Recovery & repair',   colour: 'mint',  hasResponses: true  }
+  ];
+
+  function seedData() {
+    return {
+      strengths: [
+        'Funny and social',
+        'Loves helping younger kids',
+        'Strong visual learner'
+      ],
+      stages: {
+        setting:    { items: ['Poor sleep (4–5 hours before school days)', 'Rushed morning routine'], responses: [] },
+        triggers:   { items: ['Unpredictable transitions', 'Writing tasks', 'Adults talking over him'], responses: [] },
+        early:      { items: ['Goes quiet', 'Paces', 'Clenches fists'],
+                      responses: ['Pause and listen first', 'Reduce demands, offer a choice', 'Advance warning of what’s next'] },
+        escalation: { items: ['Hitting out', 'Shouting'],
+                      responses: ['Calm, low-demand stance', 'Reduce audience', 'Offer exit to a quiet space'] },
+        recovery:   { items: ['Settles with quiet time', 'Reconnects over helping tasks'],
+                      responses: ['Reconnect gently, no debrief yet', 'Resume routine at his pace', 'Debrief with team later; update ABC chart'] }
+      },
+      hypotheses: [
+        'May communicate a need for control and predictability',
+        'May serve escape from writing demands',
+        'Communication breakdowns may contribute (low confidence)'
+      ]
+    };
+  }
+
+  var data;
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (raw) { data = JSON.parse(raw); return; }
+    } catch (e) { /* fall through to seed */ }
+    data = seedData();
+    save();
+  }
+
+  function save() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch (e) { /* storage unavailable */ }
+  }
+
+  /* ---------- generic chip list rendering ----------
+     Each list is identified by a getter that returns the live array. */
+
+  function makeChip(list, index, tint, badge) {
+    var chip = document.createElement('span');
+    chip.className = 'chip tint-' + tint;
+    if (badge) {
+      var b = document.createElement('span');
+      b.className = 'badge';
+      b.textContent = badge;
+      chip.appendChild(b);
+    }
+    var txt = document.createElement('span');
+    txt.className = 'txt';
+    txt.textContent = list[index];
+    chip.appendChild(txt);
+
+    var del = document.createElement('button');
+    del.className = 'del';
+    del.title = 'Delete';
+    del.textContent = '×';
+    del.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      if (confirm('Delete this item?\n\n“' + list[index] + '”')) {
+        list.splice(index, 1);
+        save();
+        render();
+      }
+    });
+    chip.appendChild(del);
+
+    chip.addEventListener('click', function () {
+      startEdit(chip, list, index);
+    });
+    return chip;
+  }
+
+  function startEdit(chip, list, index) {
+    var input = document.createElement('input');
+    input.className = 'inline';
+    input.value = list[index];
+    chip.replaceWith(input);
+    input.focus();
+    input.select();
+    var done = false;
+    function commit() {
+      if (done) return;
+      done = true;
+      var v = input.value.trim();
+      if (v) { list[index] = v; save(); }
+      render();
+    }
+    input.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') commit();
+      if (ev.key === 'Escape') { done = true; render(); }
+    });
+    input.addEventListener('blur', commit);
+  }
+
+  function makeAdder(list, label) {
+    var btn = document.createElement('button');
+    btn.className = 'add-btn';
+    btn.textContent = '+ ' + (label || 'add');
+    btn.addEventListener('click', function () {
+      var input = document.createElement('input');
+      input.className = 'inline';
+      input.placeholder = label || 'add';
+      btn.replaceWith(input);
+      input.focus();
+      var done = false;
+      function commit() {
+        if (done) return;
+        done = true;
+        var v = input.value.trim();
+        if (v) { list.push(v); save(); }
+        render();
+      }
+      input.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') commit();
+        if (ev.key === 'Escape') { done = true; render(); }
+      });
+      input.addEventListener('blur', commit);
+    });
+    return btn;
+  }
+
+  function fillChipList(container, list, tint, addLabel, badge) {
+    container.innerHTML = '';
+    for (var i = 0; i < list.length; i++) {
+      container.appendChild(makeChip(list, i, tint, badge));
+    }
+    container.appendChild(makeAdder(list, addLabel));
+  }
+
+  /* ---------- render ---------- */
+
+  function arrowEl() {
+    var wrap = document.createElement('div');
+    wrap.className = 'arrow';
+    wrap.innerHTML =
+      '<svg width="26" height="18" viewBox="0 0 26 18" aria-hidden="true">' +
+      '<line x1="1" y1="9" x2="18" y2="9" stroke="rgba(255,255,255,.30)" stroke-width="1.5"/>' +
+      '<path d="M17 4 L24 9 L17 14 Z" fill="rgba(255,255,255,.30)"/>' +
+      '</svg>';
+    return wrap;
+  }
+
+  function pairLinkEl() {
+    var wrap = document.createElement('div');
+    wrap.className = 'pair-link';
+    wrap.innerHTML =
+      '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">' +
+      '<line x1="7" y1="0" x2="7" y2="9" stroke="currentColor" stroke-width="1.5"/>' +
+      '<path d="M3 8 L7 13 L11 8 Z" fill="currentColor"/>' +
+      '</svg>';
+    return wrap;
+  }
+
+  function render() {
+    /* strengths */
+    var strip = document.getElementById('strengths-strip');
+    strip.innerHTML = '<span class="label">Strengths to lean on:</span>';
+    var sHolder = document.createElement('span');
+    sHolder.style.display = 'inline-flex';
+    sHolder.style.flexWrap = 'wrap';
+    sHolder.style.gap = '8px';
+    strip.appendChild(sHolder);
+    for (var i = 0; i < data.strengths.length; i++) {
+      sHolder.appendChild(makeChip(data.strengths, i, 'mint'));
+    }
+    sHolder.appendChild(makeAdder(data.strengths, 'add strength'));
+
+    /* pathway */
+    var path = document.getElementById('pathway');
+    path.innerHTML = '';
+    STAGES.forEach(function (st, idx) {
+      var col = document.createElement('div');
+      col.className = 'stage';
+
+      var card = document.createElement('div');
+      card.className = 'stage-card c-' + st.colour;
+      var head = document.createElement('div');
+      head.className = 'stage-head';
+      head.innerHTML = '<span class="stage-num">' + st.num + '</span><span class="stage-title">' + st.title + '</span>';
+      card.appendChild(head);
+      var listEl = document.createElement('div');
+      listEl.className = 'chip-list';
+      card.appendChild(listEl);
+      fillChipList(listEl, data.stages[st.key].items, st.colour, 'add');
+      col.appendChild(card);
+
+      if (st.hasResponses) {
+        col.appendChild(pairLinkEl());
+        var resp = document.createElement('div');
+        resp.className = 'responses';
+        var rt = document.createElement('div');
+        rt.className = 'r-title';
+        rt.textContent = 'What supporters do';
+        resp.appendChild(rt);
+        var rList = document.createElement('div');
+        rList.className = 'chip-list';
+        resp.appendChild(rList);
+        fillChipList(rList, data.stages[st.key].responses, 'mint', 'add response');
+        col.appendChild(resp);
+      } else {
+        var spacer = document.createElement('div');
+        spacer.className = 'pair-spacer';
+        col.appendChild(spacer);
+      }
+
+      path.appendChild(col);
+      if (idx < STAGES.length - 1) path.appendChild(arrowEl());
+    });
+
+    /* hypotheses */
+    var hRow = document.getElementById('hypo-row');
+    hRow.innerHTML = '';
+    for (var h = 0; h < data.hypotheses.length; h++) {
+      hRow.appendChild(makeChip(data.hypotheses, h, 'lavender', 'hypothesis'));
+    }
+    hRow.appendChild(makeAdder(data.hypotheses, 'add hypothesis'));
+  }
+
+  /* ---------- export ---------- */
+
+  function download(filename, mime, content) {
+    var blob = new Blob([content], { type: mime });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function bullets(list) {
+    if (!list.length) return '_None recorded yet._\n';
+    return list.map(function (x) { return '- ' + x; }).join('\n') + '\n';
+  }
+
+  function exportMarkdown() {
+    var md = '';
+    md += '# Escalation pathway — Alex (pseudonym)\n\n';
+    md += '_A team thinking tool, not a behaviour support plan. Drafted ' +
+          new Date().toLocaleDateString('en-AU') + '. Fictional, de-identified sample case._\n\n';
+    md += '## Strengths to lean on\n\n' + bullets(data.strengths) + '\n';
+    STAGES.forEach(function (st) {
+      md += '## ' + st.num + '. ' + st.title + '\n\n';
+      md += bullets(data.stages[st.key].items);
+      if (st.hasResponses) {
+        md += '\n**What supporters do:**\n\n';
+        md += bullets(data.stages[st.key].responses);
+      }
+      md += '\n';
+    });
+    md += '## Why we think it happens (working hypotheses)\n\n';
+    md += bullets(data.hypotheses);
+    md += '\n_These hypotheses are tentative and may change as the team learns more about what works for Alex._\n';
+    download('escalation-pathway-alex.md', 'text/markdown', md);
+  }
+
+  function exportJson() {
+    download('escalation-pathway-alex.json', 'application/json', JSON.stringify(data, null, 2));
+  }
+
+  /* ---------- wire up ---------- */
+
+  document.getElementById('btn-md').addEventListener('click', exportMarkdown);
+  document.getElementById('btn-json').addEventListener('click', exportJson);
+  document.getElementById('btn-reset').addEventListener('click', function () {
+    if (confirm('Reset to the sample case? Your current entries will be replaced.')) {
+      data = seedData();
+      save();
+      render();
+    }
+  });
+
+  load();
+  render();
+})();
+</script>
+
+</body>
+</html>

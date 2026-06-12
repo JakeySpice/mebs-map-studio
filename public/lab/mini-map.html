@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini Map — MEBS minimal variations</title>
+<style>
+  :root{
+    --bg:#131318; --surface:#1d1d26; --border:rgba(255,255,255,.08);
+    --text:#e9e9f2; --muted:#9a9ab0;
+    --lavender:#c4b5fd; --blue:#93c5fd; --mint:#86efac; --rose:#fda4af; --amber:#fcd34d;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  header{
+    height:52px; flex:0 0 52px; display:flex; align-items:center; gap:18px;
+    padding:0 16px; background:var(--surface); border-bottom:1px solid var(--border);
+  }
+  header .back{color:var(--muted); text-decoration:none; font-size:12.5px; white-space:nowrap;}
+  header .back:hover{color:var(--text);}
+  header h1{font-size:15px; font-weight:650; letter-spacing:.2px; white-space:nowrap;}
+  header .tagline{font-size:12px; color:var(--muted); white-space:nowrap;}
+  header .notice{
+    font-size:11.5px; color:var(--muted); margin-left:auto; text-align:right;
+    line-height:1.3; max-width:340px;
+  }
+  header .actions{display:flex; gap:8px; flex:0 0 auto;}
+  button{
+    background:rgba(255,255,255,.05); color:var(--text); border:1px solid var(--border);
+    border-radius:10px; padding:6px 12px; font:inherit; font-size:12.5px; cursor:pointer;
+    transition:background .12s ease, border-color .12s ease;
+  }
+  button:hover{background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.18);}
+  button.danger{border-color:rgba(253,164,175,.35); color:var(--rose);}
+  button.danger:hover{background:rgba(253,164,175,.1);}
+  #stage{position:relative; flex:1 1 auto; overflow:hidden; user-select:none; -webkit-user-select:none;}
+  #svg{position:absolute; inset:0; width:100%; height:100%; display:block; cursor:grab; touch-action:none;}
+  #svg.panning{cursor:grabbing;}
+  #svg .node{cursor:pointer;}
+  #hint{
+    position:absolute; left:14px; bottom:10px; font-size:11.5px; color:var(--muted);
+    pointer-events:none; opacity:.85;
+  }
+  #inlineEdit{
+    position:absolute; z-index:30; display:none; background:var(--bg); color:var(--text);
+    border:1px solid var(--lavender); border-radius:8px; padding:0 12px; outline:none;
+    font-family:inherit; box-shadow:0 4px 18px rgba(0,0,0,.5);
+  }
+  #panel{
+    position:absolute; top:14px; right:14px; width:268px; z-index:20;
+    background:rgba(29,29,38,.96); border:1px solid var(--border); border-radius:14px;
+    padding:14px; box-shadow:0 8px 30px rgba(0,0,0,.45);
+    display:flex; flex-direction:column; gap:10px;
+  }
+  #panel[hidden]{display:none;}
+  #panel .panel-head{display:flex; align-items:center; justify-content:space-between;}
+  #panel .kind{font-size:11px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted);}
+  #panel .close{padding:2px 8px; border-radius:8px; font-size:13px; line-height:1;}
+  #panel label{display:flex; flex-direction:column; gap:5px; font-size:11.5px; color:var(--muted);}
+  #panel input[type=text], #panel textarea{
+    background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:9px;
+    padding:7px 9px; font:inherit; font-size:13px; outline:none; resize:vertical;
+  }
+  #panel input[type=text]:focus, #panel textarea:focus{border-color:rgba(196,181,253,.55);}
+  #panel .panel-actions{display:flex; gap:8px;}
+  #panel .panel-actions button{flex:1;}
+  #panel .info{font-size:11.5px; color:var(--muted); line-height:1.45;}
+  #panel .info:empty{display:none;}
+  @media (max-width:880px){ header .notice{display:none;} header .tagline{display:none;} }
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="./index.html">&larr; All variations</a>
+  <h1>Mini Map</h1>
+  <span class="tagline">The signature map, distilled</span>
+  <p class="notice">A thinking tool — not a BSP generator. Data stays in this browser.</p>
+  <div class="actions">
+    <button id="btnFit" title="Recentre the map">Fit</button>
+    <button id="btnExport" title="Download the map as JSON">Export JSON</button>
+    <button id="btnReset" class="danger" title="Restore the sample case">Reset sample</button>
+  </div>
+</header>
+
+<div id="stage">
+  <svg id="svg" xmlns="http://www.w3.org/2000/svg">
+    <g id="viewport">
+      <g id="edges"></g>
+      <g id="nodes"></g>
+    </g>
+  </svg>
+  <input id="inlineEdit" type="text" autocomplete="off" spellcheck="false">
+  <div id="hint">Drag to pan &middot; scroll to zoom &middot; click a node to edit &middot; double-click a label to rename</div>
+
+  <aside id="panel" hidden>
+    <div class="panel-head">
+      <span class="kind" id="panelKind">Map item</span>
+      <button class="close" id="panelClose" title="Close panel">&times;</button>
+    </div>
+    <label>Name
+      <input type="text" id="fldName" autocomplete="off" spellcheck="false">
+    </label>
+    <label>Note
+      <textarea id="fldNote" rows="4" placeholder="A short note — observations, context, questions&hellip;"></textarea>
+    </label>
+    <div class="panel-actions">
+      <button id="btnAddChild">Add child</button>
+      <button id="btnDelete" class="danger">Delete</button>
+    </div>
+    <p class="info" id="panelInfo"></p>
+  </aside>
+</div>
+
+<script>
+'use strict';
+
+/* ---------- constants ---------- */
+var KEY = 'mebs-min-minimap';
+var ACCENT = { lavender:'#c4b5fd', blue:'#93c5fd', mint:'#86efac', rose:'#fda4af', amber:'#fcd34d' };
+/* child tint per MEBS domain (index 0–8) */
+var DOMAIN_ACCENT = ['lavender','blue','rose','amber','mint','mint','mint','rose','amber'];
+var ROW = 46;          /* vertical pitch per visible leaf */
+var COL_GAP = 56;      /* horizontal gap between depth columns */
+var FONT_STACK = 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
+var TRANSIENT = ['parent','depth','di','w','h','x','cy'];   /* layout-only keys, never saved */
+
+/* ---------- DOM ---------- */
+function $(id){ return document.getElementById(id); }
+var svg = $('svg'), viewport = $('viewport'), edgesG = $('edges'), nodesG = $('nodes');
+var stage = $('stage'), inline = $('inlineEdit'), panel = $('panel');
+var fldName = $('fldName'), fldNote = $('fldNote');
+var btnAddChild = $('btnAddChild'), btnDelete = $('btnDelete');
+var panelKind = $('panelKind'), panelInfo = $('panelInfo');
+
+/* ---------- data model ---------- */
+var idSeq = 1;
+function nid(){ return 'n' + (idSeq++); }
+function makeNode(label, children, extra){
+  var n = { id:nid(), label:label, note:'', collapsed:false, children:children || [] };
+  if (extra) { for (var k in extra) n[k] = extra[k]; }
+  return n;
+}
+
+function makeSeed(){
+  idSeq = 1;
+  function dom(label, items, open){
+    return makeNode(label, items.map(function(t){ return makeNode(t); }), { collapsed: !open });
+  }
+  var rp = makeNode('None in place — keep it that way');
+  rp.note = 'Review safeguards if anything changes.';
+  var root = makeNode('Alex — Good Life & Support Map', [
+    dom('Person, Strengths & Quality of Life', [
+      'Funny and social',
+      'Loves helping younger kids',
+      'Strong visual learner',
+      'Goal: more say in his daily routine',
+      'Goal: keep helping at lunch club'
+    ], true),
+    dom('Ecology, Routines & Context', [
+      'Poor sleep — 4–5 hours before school days',
+      'Writing tasks at school',
+      'Adults talking over him',
+      'Unpredictable transitions'
+    ]),
+    dom('Behaviour Patterns & Escalation Cycle', [
+      'Hitting out and shouting, mostly around transitions',
+      'Early warning: goes quiet, paces, clenches fists'
+    ]),
+    dom('Formulation & Maintaining Variables', [
+      'May communicate a need for control and predictability',
+      'May serve escape from writing demands',
+      'Communication breakdowns may contribute (low confidence)'
+    ]),
+    dom('Proactive & Environmental Supports', [
+      'Visual schedule with advance warning of transitions',
+      'Offer choices at transition points',
+      'Chunk writing demands',
+      'Staff pause and listen first'
+    ]),
+    dom('Skill Acquisition & Replacement Behaviours', [
+      'Asking for a break',
+      'Choice-making at transitions'
+    ]),
+    dom('Response Strategies & Crisis Support', [
+      'Calm, low-demand stance',
+      'Reduce audience',
+      'Offer exit to a quiet space'
+    ]),
+    makeNode('Restrictive Practices, Safeguards & Rights', [rp], { collapsed:true }),
+    dom('Data, Fidelity & Review', [
+      'Sleep diary',
+      'ABC chart on transitions',
+      'Review in 4 weeks',
+      'Open question: pain/health review needed?'
+    ])
+  ]);
+  root.note = 'Alex (pseudonym) — a de-identified, fictional sample case. The person and their good life come first; behaviour sits in context.';
+  return root;
+}
+
+var tree = null;
+var selected = null;
+var editing = null;
+
+function strip(key, value){ return TRANSIENT.indexOf(key) >= 0 ? undefined : value; }
+
+function save(){
+  try { localStorage.setItem(KEY, JSON.stringify({ idSeq:idSeq, tree:tree }, strip)); } catch (e) {}
+}
+
+function maxId(n){
+  var m = parseInt(String(n.id).slice(1), 10) || 0;
+  for (var i = 0; i < n.children.length; i++) m = Math.max(m, maxId(n.children[i]));
+  return m;
+}
+
+function load(){
+  try {
+    var raw = localStorage.getItem(KEY);
+    if (raw) {
+      var data = JSON.parse(raw);
+      if (data && data.tree && Array.isArray(data.tree.children)) {
+        tree = data.tree;
+        idSeq = Math.max(parseInt(data.idSeq, 10) || 1, maxId(tree) + 1);
+        return;
+      }
+    }
+  } catch (e) {}
+  tree = makeSeed();
+  save();
+}
+
+/* ---------- layout (tidy left-to-right tree) ---------- */
+var meas = document.createElement('canvas').getContext('2d');
+function fontFor(depth){
+  if (depth === 0) return '600 14px ' + FONT_STACK;
+  if (depth === 1) return '600 13px ' + FONT_STACK;
+  return '400 12.5px ' + FONT_STACK;
+}
+function heightFor(depth){ return depth === 0 ? 44 : depth === 1 ? 36 : 30; }
+
+var visible = [];   /* visible nodes, in draw order */
+
+function relayout(){
+  visible = [];
+  var slot = 0;
+  (function walk(n, depth, parent, di){
+    n.depth = depth; n.parent = parent; n.di = di;
+    meas.font = fontFor(depth);
+    n.w = Math.max(60, Math.ceil(meas.measureText(n.label).width) + 30);
+    n.h = heightFor(depth);
+    visible.push(n);
+    var open = n.children.length > 0 && !n.collapsed;
+    if (open) {
+      n.children.forEach(function(c, i){ walk(c, depth + 1, n, depth === 0 ? i : di); });
+      n.cy = (n.children[0].cy + n.children[n.children.length - 1].cy) / 2;
+    } else {
+      n.cy = slot * ROW;
+      slot++;
+    }
+  })(tree, 0, null, -1);
+  var colW = [], colX = [0];
+  visible.forEach(function(n){ colW[n.depth] = Math.max(colW[n.depth] || 0, n.w); });
+  for (var d = 1; d < colW.length; d++) colX[d] = colX[d - 1] + colW[d - 1] + COL_GAP;
+  visible.forEach(function(n){ n.x = colX[n.depth]; });
+}
+
+/* ---------- rendering ---------- */
+var svgNS = 'http://www.w3.org/2000/svg';
+function el(name, attrs, parent){
+  var e = document.createElementNS(svgNS, name);
+  for (var k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function hexA(hex, a){
+  var r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+}
+function accentHex(n){
+  if (n.depth === 0) return ACCENT.lavender;
+  if (n.depth === 1) return ACCENT.blue;
+  return ACCENT[DOMAIN_ACCENT[n.di]] || ACCENT.blue;
+}
+
+function render(){
+  edgesG.textContent = '';
+  nodesG.textContent = '';
+  visible.forEach(function(n){
+    if (!n.parent) return;
+    var p = n.parent;
+    var x1 = p.x + p.w, y1 = p.cy, x2 = n.x, y2 = n.cy, mx = (x1 + x2) / 2;
+    el('path', {
+      d: 'M ' + x1 + ' ' + y1 + ' C ' + mx + ' ' + y1 + ', ' + mx + ' ' + y2 + ', ' + x2 + ' ' + y2,
+      fill: 'none', stroke: hexA(accentHex(n), 0.32), 'stroke-width': 1.5
+    }, edgesG);
+  });
+  visible.forEach(drawNode);
+}
+
+function drawNode(n){
+  var a = accentHex(n);
+  var sel = selected && selected.id === n.id;
+  var g = el('g', { 'class': 'node', transform: 'translate(' + n.x + ',' + (n.cy - n.h / 2) + ')' }, nodesG);
+  var radius = n.depth === 0 ? 13 : n.depth === 1 ? 11 : 9;
+  if (sel) {
+    el('rect', { x: -3, y: -3, width: n.w + 6, height: n.h + 6, rx: radius + 3,
+                 fill: 'none', stroke: hexA(a, 0.4), 'stroke-width': 1.4 }, g);
+  }
+  el('rect', { width: n.w, height: n.h, rx: radius,
+               fill: hexA(a, n.depth < 2 ? 0.13 : 0.06),
+               stroke: sel ? a : hexA(a, 0.45),
+               'stroke-width': sel ? 1.6 : 1 }, g);
+  var t = el('text', { x: 15, y: n.h / 2, fill: '#e9e9f2',
+                       'dominant-baseline': 'central',
+                       'font-size': n.depth === 0 ? 14 : n.depth === 1 ? 13 : 12.5,
+                       'font-weight': n.depth < 2 ? 600 : 400 }, g);
+  t.textContent = n.label;
+  if (n.note) el('circle', { cx: n.w - 9, cy: 8, r: 2.5, fill: hexA(a, 0.9) }, g);
+  var tip = el('title', {}, g);
+  tip.textContent = n.label + (n.note ? '\n' + n.note : '');
+  if (n.children.length) {
+    var b = el('g', { 'class': 'toggle', transform: 'translate(' + n.w + ',' + (n.h / 2) + ')' }, g);
+    el('circle', { r: 8, fill: '#1d1d26', stroke: 'rgba(255,255,255,0.28)' }, b);
+    var sign = el('text', { y: 0.5, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+                            'font-size': 11, fill: '#9a9ab0' }, b);
+    sign.textContent = n.collapsed ? '+' : '−';
+    b.addEventListener('click', function(e){
+      e.stopPropagation();
+      n.collapsed = !n.collapsed;
+      commit();
+    });
+  }
+  g.addEventListener('click', function(e){ e.stopPropagation(); select(n); });
+  g.addEventListener('dblclick', function(e){ e.stopPropagation(); startInlineEdit(n); });
+}
+
+function commit(){ relayout(); render(); save(); }
+
+/* ---------- selection panel ---------- */
+function select(n){
+  selected = n;
+  render();
+  renderPanel(true);
+}
+
+function renderPanel(refreshFields){
+  if (!selected) { panel.hidden = true; return; }
+  panel.hidden = false;
+  panelKind.textContent = selected.depth === 0 ? 'Person — map root'
+                        : selected.depth === 1 ? 'MEBS domain' : 'Map item';
+  if (refreshFields) {
+    fldName.value = selected.label;
+    fldNote.value = selected.note || '';
+  }
+  btnDelete.hidden = selected.depth < 2;
+  btnAddChild.hidden = selected.depth === 0;
+  panelInfo.textContent = selected.depth === 0
+    ? 'The nine MEBS domains are fixed in this mini version — add detail inside them.'
+    : selected.depth === 1
+      ? 'Domains can’t be deleted — they hold the shape of the formulation.'
+      : '';
+}
+
+fldName.addEventListener('input', function(){
+  if (!selected) return;
+  selected.label = fldName.value;
+  relayout(); render(); save();
+});
+fldName.addEventListener('blur', function(){
+  if (selected && !fldName.value.trim()) {
+    selected.label = 'Untitled';
+    fldName.value = 'Untitled';
+    commit();
+  }
+});
+fldName.addEventListener('keydown', function(e){ if (e.key === 'Enter') fldName.blur(); });
+
+fldNote.addEventListener('input', function(){
+  if (!selected) return;
+  selected.note = fldNote.value;
+  render(); save();
+});
+
+btnAddChild.addEventListener('click', function(){
+  if (!selected) return;
+  var c = makeNode('New item');
+  selected.children.push(c);
+  selected.collapsed = false;
+  commit();
+  select(c);
+  fldName.focus();
+  fldName.select();
+});
+
+function countDesc(n){
+  var c = 0;
+  n.children.forEach(function(k){ c += 1 + countDesc(k); });
+  return c;
+}
+
+btnDelete.addEventListener('click', function(){
+  if (!selected || selected.depth < 2 || !selected.parent) return;
+  var below = countDesc(selected);
+  var msg = below
+    ? 'Delete “' + selected.label + '” and the ' + below + ' item' + (below === 1 ? '' : 's') + ' under it?'
+    : 'Delete “' + selected.label + '”?';
+  if (!confirm(msg)) return;
+  var p = selected.parent;
+  var idx = p.children.indexOf(selected);
+  if (idx >= 0) p.children.splice(idx, 1);
+  selected = p;
+  commit();
+  renderPanel(true);
+});
+
+$('panelClose').addEventListener('click', function(){
+  selected = null;
+  render();
+  renderPanel();
+});
+
+/* ---------- inline rename ---------- */
+function startInlineEdit(n){
+  select(n);
+  editing = n;
+  var k = view.k;
+  inline.value = n.label;
+  inline.style.display = 'block';
+  inline.style.left = (view.x + n.x * k) + 'px';
+  inline.style.top = (view.y + (n.cy - n.h / 2) * k) + 'px';
+  inline.style.width = Math.max(140, (n.w + 30) * k) + 'px';
+  inline.style.height = (n.h * k) + 'px';
+  inline.style.fontSize = (13 * k) + 'px';
+  inline.style.borderColor = accentHex(n);
+  inline.focus();
+  inline.select();
+}
+function endInlineEdit(apply){
+  if (!editing) return;
+  var n = editing;
+  editing = null;
+  inline.style.display = 'none';
+  if (apply) {
+    var v = inline.value.trim();
+    if (v) n.label = v;
+  }
+  commit();
+  if (selected && selected.id === n.id) renderPanel(true);
+}
+inline.addEventListener('blur', function(){ endInlineEdit(true); });
+inline.addEventListener('keydown', function(e){
+  if (e.key === 'Enter') inline.blur();
+  else if (e.key === 'Escape') endInlineEdit(false);
+});
+
+/* ---------- pan & zoom ---------- */
+var view = { x: 0, y: 0, k: 1 };
+function applyView(){
+  viewport.setAttribute('transform', 'translate(' + view.x + ',' + view.y + ') scale(' + view.k + ')');
+}
+
+var drag = null;
+svg.addEventListener('pointerdown', function(e){
+  if (e.button !== 0) return;
+  if (e.target.closest && e.target.closest('.node')) return;
+  drag = { sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false };
+  svg.classList.add('panning');
+  svg.setPointerCapture(e.pointerId);
+});
+svg.addEventListener('pointermove', function(e){
+  if (!drag) return;
+  var dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+  if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
+  view.x = drag.vx + dx;
+  view.y = drag.vy + dy;
+  applyView();
+});
+svg.addEventListener('pointerup', function(){
+  if (!drag) return;
+  if (!drag.moved) {           /* a plain click on empty canvas clears selection */
+    selected = null;
+    render();
+    renderPanel();
+  }
+  drag = null;
+  svg.classList.remove('panning');
+});
+
+svg.addEventListener('wheel', function(e){
+  e.preventDefault();
+  var rect = svg.getBoundingClientRect();
+  var mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  var k2 = Math.min(2, Math.max(0.4, view.k * Math.exp(-e.deltaY * 0.0014)));
+  view.x = mx - (mx - view.x) * (k2 / view.k);
+  view.y = my - (my - view.y) * (k2 / view.k);
+  view.k = k2;
+  applyView();
+}, { passive: false });
+
+function fitView(){
+  var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  visible.forEach(function(n){
+    minX = Math.min(minX, n.x);
+    minY = Math.min(minY, n.cy - n.h / 2);
+    maxX = Math.max(maxX, n.x + n.w + 10);
+    maxY = Math.max(maxY, n.cy + n.h / 2);
+  });
+  if (minX === Infinity) return;
+  var pad = 60, vw = stage.clientWidth, vh = stage.clientHeight;
+  var bw = Math.max(1, maxX - minX), bh = Math.max(1, maxY - minY);
+  var k = Math.min((vw - pad * 2) / bw, (vh - pad * 2) / bh, 1.15);
+  view.k = Math.min(2, Math.max(0.4, k));
+  view.x = (vw - bw * view.k) / 2 - minX * view.k;
+  view.y = (vh - bh * view.k) / 2 - minY * view.k;
+  applyView();
+}
+
+/* ---------- header actions ---------- */
+$('btnFit').addEventListener('click', fitView);
+
+$('btnExport').addEventListener('click', function(){
+  var payload = JSON.stringify({
+    app: 'MEBS Mini Map (minimal variation)',
+    note: 'De-identified sample data. A thinking tool — not a BSP generator.',
+    exported: new Date().toISOString(),
+    tree: tree
+  }, strip, 2);
+  var blob = new Blob([payload], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'mebs-mini-map.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+});
+
+$('btnReset').addEventListener('click', function(){
+  if (!confirm('Replace the current map with the sample case? This can’t be undone.')) return;
+  tree = makeSeed();
+  selected = null;
+  editing = null;
+  inline.style.display = 'none';
+  commit();
+  renderPanel();
+  fitView();
+});
+
+/* ---------- boot ---------- */
+load();
+relayout();
+render();
+fitView();
+renderPanel();
+</script>
+</body>
+</html>

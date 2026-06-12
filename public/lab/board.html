@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Domain Board — MEBS minimal variations</title>
+<style>
+  :root {
+    --bg: #131318;
+    --surface: #1d1d26;
+    --surface-2: #262630;
+    --border: rgba(255, 255, 255, .08);
+    --text: #e9e9f2;
+    --muted: #9a9ab0;
+    --lavender: #c4b5fd;
+    --blue: #93c5fd;
+    --mint: #86efac;
+    --rose: #fda4af;
+    --amber: #fcd34d;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    padding: 10px 18px;
+    background: #17171d;
+    border-bottom: 1px solid var(--border);
+  }
+  .head-left { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .head-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 16px; font-weight: 650; }
+  .tagline { color: var(--muted); font-size: 12.5px; }
+  .back { color: var(--muted); text-decoration: none; font-size: 12.5px; }
+  .back:hover { color: var(--text); }
+  .notice { color: var(--muted); font-size: 12px; max-width: 380px; }
+  .btn {
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 10px;
+    padding: 6px 12px;
+    font: inherit;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  .btn:hover { background: #2e2e3a; }
+  .subtitle {
+    margin: 0;
+    padding: 8px 18px 0;
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  #board {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 12px 18px 18px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .column {
+    flex: 0 0 280px;
+    width: 280px;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--lavender);
+    border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .25);
+  }
+  .col-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 14px 8px;
+  }
+  .col-title { margin: 0; font-size: 13px; font-weight: 600; line-height: 1.35; }
+  .col-num { color: var(--muted); margin-right: 5px; }
+  .badge {
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid;
+  }
+  .add-zone { padding: 2px 12px 6px; }
+  .add-btn {
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: 1px dashed rgba(255, 255, 255, .16);
+    border-radius: 10px;
+    color: var(--muted);
+    padding: 7px 10px;
+    font: inherit;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  .add-btn:hover { color: var(--text); border-color: rgba(255, 255, 255, .32); }
+  .add-input, .edit-title, .edit-note {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid rgba(255, 255, 255, .14);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 7px 9px;
+    font: inherit;
+  }
+  .add-input:focus, .edit-title:focus, .edit-note:focus {
+    outline: none;
+    border-color: var(--lavender);
+  }
+  .cards {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 4px 12px 12px;
+    min-height: 36px;
+  }
+  .card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 9px 11px;
+    cursor: grab;
+  }
+  .card:hover { border-color: rgba(255, 255, 255, .2); }
+  .card:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+  .card.dragging { opacity: .35; }
+  .card.expanded {
+    cursor: default;
+    border-color: rgba(196, 181, 253, .55);
+    box-shadow: 0 0 0 1px rgba(196, 181, 253, .25);
+  }
+  .card-title { overflow-wrap: break-word; }
+  .card-hint { margin-top: 4px; color: var(--muted); font-size: 11px; }
+  .edit-note { resize: vertical; min-height: 64px; margin-top: 8px; font-size: 13px; }
+  .edit-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 9px;
+  }
+  .btn-delete {
+    background: transparent;
+    color: var(--rose);
+    border-color: rgba(253, 164, 175, .4);
+  }
+  .btn-delete:hover { background: rgba(253, 164, 175, .12); }
+  .btn-done { border-color: rgba(134, 239, 172, .35); }
+  .drop-indicator {
+    flex: 0 0 3px;
+    height: 3px;
+    border-radius: 2px;
+    margin: 1px 2px;
+    pointer-events: none;
+  }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .12); border-radius: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="head-left">
+    <a class="back" href="./index.html">&larr; All variations</a>
+    <h1>Domain Board</h1>
+    <span class="tagline">Nine buckets, zero ceremony</span>
+  </div>
+  <div class="head-right">
+    <span class="notice">A thinking tool — not a BSP generator. Data stays in this browser.</span>
+    <button class="btn" id="export-md">Export Markdown</button>
+    <button class="btn" id="export-json">Export JSON</button>
+    <button class="btn" id="reset">Reset sample</button>
+  </div>
+</header>
+
+<p class="subtitle">Sample case: “Alex” (pseudonym) — fictional and de-identified, seeded so you can try the board.</p>
+
+<main id="board" aria-label="MEBS domain board"></main>
+
+<script>
+'use strict';
+
+var STORE_KEY = 'mebs-min-board';
+
+var COLOURS = {
+  lavender: '#c4b5fd',
+  blue: '#93c5fd',
+  mint: '#86efac',
+  rose: '#fda4af',
+  amber: '#fcd34d'
+};
+
+var DOMAINS = [
+  { name: 'Person, Strengths & Quality of Life', colour: 'lavender' },
+  { name: 'Ecology, Routines & Context', colour: 'blue' },
+  { name: 'Behaviour Patterns & Escalation Cycle', colour: 'rose' },
+  { name: 'Formulation & Maintaining Variables', colour: 'lavender' },
+  { name: 'Proactive & Environmental Supports', colour: 'mint' },
+  { name: 'Skill Acquisition & Replacement Behaviours', colour: 'mint' },
+  { name: 'Response Strategies & Crisis Support', colour: 'mint' },
+  { name: 'Restrictive Practices, Safeguards & Rights', colour: 'rose' },
+  { name: 'Data, Fidelity & Review', colour: 'amber' }
+];
+
+function uid() {
+  return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+function seedData() {
+  function c(title, note) { return { id: uid(), title: title, note: note || '' }; }
+  return { columns: [
+    [
+      c('Funny and social'),
+      c('Loves helping younger kids'),
+      c('Strong visual learner'),
+      c('Goal: more say in his daily routine'),
+      c('Goal: keep helping at lunch club')
+    ],
+    [
+      c('Poor sleep (4–5 hours before school days)'),
+      c('Writing tasks at school'),
+      c('Adults talking over him'),
+      c('Unpredictable transitions')
+    ],
+    [
+      c('Hitting out and shouting, mostly around transitions',
+        'Early warning signs — goes quiet, paces, clenches fists.')
+    ],
+    [
+      c('May communicate a need for control and predictability'),
+      c('May serve escape from writing demands'),
+      c('Communication breakdowns may contribute',
+        'Low confidence — we think this needs more observation before we lean on it.')
+    ],
+    [
+      c('Visual schedule with advance warning of transitions'),
+      c('Offer choices at transition points'),
+      c('Chunk writing demands'),
+      c('Staff pause and listen first')
+    ],
+    [
+      c('Asking for a break'),
+      c('Choice-making at transitions')
+    ],
+    [
+      c('Calm, low-demand stance'),
+      c('Reduce audience'),
+      c('Offer exit to a quiet space')
+    ],
+    [
+      c('None in place — keep it that way')
+    ],
+    [
+      c('Sleep diary'),
+      c('ABC chart on transitions'),
+      c('Review in 4 weeks'),
+      c('Open question: pain/health review needed?')
+    ]
+  ] };
+}
+
+function load() {
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      var parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.columns) && parsed.columns.length === DOMAINS.length) {
+        return parsed;
+      }
+    }
+  } catch (err) { /* corrupted store — fall back to seed */ }
+  return seedData();
+}
+
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (err) { /* storage unavailable */ }
+}
+
+var state = load();
+var expandedId = null;   // card currently open in the inline editor
+var addingCol = null;    // column whose "+ Add card" input is open
+var drag = null;         // { id } of the card being dragged
+var lastDragEnd = 0;
+
+var board = document.getElementById('board');
+var indicator = document.createElement('div');
+indicator.className = 'drop-indicator';
+
+save(); // persist seed on first load
+
+/* ---------- helpers ---------- */
+
+function el(tag, cls, text) {
+  var node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function findCard(id) {
+  for (var col = 0; col < state.columns.length; col++) {
+    for (var idx = 0; idx < state.columns[col].length; idx++) {
+      if (state.columns[col][idx].id === id) return { col: col, idx: idx, card: state.columns[col][idx] };
+    }
+  }
+  return null;
+}
+
+function normaliseOpenCard() {
+  if (!expandedId) return;
+  var found = findCard(expandedId);
+  if (found && !found.card.title.trim()) found.card.title = 'Untitled card';
+}
+
+function collapse() {
+  normaliseOpenCard();
+  expandedId = null;
+  save();
+  render();
+}
+
+/* ---------- rendering ---------- */
+
+function render() {
+  var scrollLeft = board.scrollLeft;
+  var scrollTops = {};
+  board.querySelectorAll('.cards').forEach(function (cardsEl) {
+    scrollTops[cardsEl.dataset.col] = cardsEl.scrollTop;
+  });
+
+  board.innerHTML = '';
+  DOMAINS.forEach(function (dom, i) { board.appendChild(buildColumn(dom, i)); });
+
+  board.scrollLeft = scrollLeft;
+  board.querySelectorAll('.cards').forEach(function (cardsEl) {
+    if (scrollTops[cardsEl.dataset.col] !== undefined) cardsEl.scrollTop = scrollTops[cardsEl.dataset.col];
+  });
+}
+
+function buildColumn(dom, colIndex) {
+  var colour = COLOURS[dom.colour];
+  var col = el('section', 'column');
+  col.style.borderTopColor = colour;
+
+  var head = el('div', 'col-head');
+  var title = el('h2', 'col-title');
+  var num = el('span', 'col-num', String(colIndex + 1));
+  title.appendChild(num);
+  title.appendChild(document.createTextNode(dom.name));
+  var badge = el('span', 'badge', String(state.columns[colIndex].length));
+  badge.style.color = colour;
+  badge.style.borderColor = colour + '44';
+  badge.style.background = colour + '1a';
+  head.appendChild(title);
+  head.appendChild(badge);
+  col.appendChild(head);
+
+  col.appendChild(buildAddZone(colIndex));
+
+  var cards = el('div', 'cards');
+  cards.dataset.col = String(colIndex);
+  state.columns[colIndex].forEach(function (card) {
+    cards.appendChild(card.id === expandedId ? buildEditor(card) : buildCard(card));
+  });
+  col.appendChild(cards);
+
+  col.addEventListener('dragover', function (e) {
+    if (!drag) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    positionIndicator(cards, e.clientY, colour);
+  });
+  col.addEventListener('drop', function (e) { onDrop(e, cards, colIndex); });
+
+  return col;
+}
+
+function buildAddZone(colIndex) {
+  var zone = el('div', 'add-zone');
+  if (addingCol === colIndex) {
+    var input = el('input', 'add-input');
+    input.placeholder = 'Card title — Enter adds, Esc closes';
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        var value = input.value.trim();
+        if (value) {
+          state.columns[colIndex].unshift({ id: uid(), title: value, note: '' });
+          save();
+          render();
+          focusAddInput();
+        }
+      } else if (e.key === 'Escape') {
+        addingCol = null;
+        render();
+      }
+    });
+    zone.appendChild(input);
+  } else {
+    var btn = el('button', 'add-btn', '+ Add card');
+    btn.type = 'button';
+    btn.addEventListener('click', function () {
+      normaliseOpenCard();
+      expandedId = null;
+      addingCol = colIndex;
+      save();
+      render();
+      focusAddInput();
+    });
+    zone.appendChild(btn);
+  }
+  return zone;
+}
+
+function focusAddInput() {
+  var input = board.querySelector('.add-input');
+  if (input) input.focus();
+}
+
+function buildCard(card) {
+  var node = el('article', 'card');
+  node.dataset.cardId = card.id;
+  node.draggable = true;
+  node.tabIndex = 0;
+  node.appendChild(el('div', 'card-title', card.title));
+  if (card.note && card.note.trim()) node.appendChild(el('div', 'card-hint', 'note'));
+
+  function open() {
+    if (Date.now() - lastDragEnd < 300) return; // ignore the click that can follow a cancelled drag
+    normaliseOpenCard();
+    expandedId = card.id;
+    addingCol = null;
+    render();
+    var titleInput = board.querySelector('.card.expanded .edit-title');
+    if (titleInput) {
+      titleInput.focus();
+      titleInput.setSelectionRange(titleInput.value.length, titleInput.value.length);
+    }
+  }
+
+  node.addEventListener('click', open);
+  node.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); open(); }
+  });
+
+  node.addEventListener('dragstart', function (e) {
+    drag = { id: card.id };
+    e.dataTransfer.setData('text/plain', card.title);
+    e.dataTransfer.effectAllowed = 'move';
+    requestAnimationFrame(function () { node.classList.add('dragging'); });
+  });
+  node.addEventListener('dragend', cleanupDrag);
+
+  return node;
+}
+
+function buildEditor(card) {
+  var node = el('article', 'card expanded');
+  node.dataset.cardId = card.id;
+
+  var titleInput = el('input', 'edit-title');
+  titleInput.value = card.title;
+  titleInput.placeholder = 'Card title';
+  titleInput.addEventListener('input', function () { card.title = titleInput.value; save(); });
+  titleInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); collapse(); }
+  });
+  node.appendChild(titleInput);
+
+  var noteInput = el('textarea', 'edit-note');
+  noteInput.value = card.note || '';
+  noteInput.placeholder = 'Optional note — context, cautions, open questions';
+  noteInput.addEventListener('input', function () { card.note = noteInput.value; save(); });
+  noteInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { e.preventDefault(); collapse(); }
+  });
+  node.appendChild(noteInput);
+
+  var actions = el('div', 'edit-actions');
+  var del = el('button', 'btn btn-delete', 'Delete');
+  del.type = 'button';
+  del.addEventListener('click', function () {
+    if (!confirm('Delete this card? This can’t be undone.')) return;
+    var found = findCard(card.id);
+    if (found) state.columns[found.col].splice(found.idx, 1);
+    expandedId = null;
+    save();
+    render();
+  });
+  var done = el('button', 'btn btn-done', 'Done');
+  done.type = 'button';
+  done.addEventListener('click', collapse);
+  actions.appendChild(del);
+  actions.appendChild(done);
+  node.appendChild(actions);
+
+  return node;
+}
+
+/* click anywhere outside the open editor collapses it */
+document.addEventListener('click', function (e) {
+  if (!expandedId) return;
+  var hit = e.target.closest ? e.target.closest('[data-card-id]') : null;
+  if (hit && hit.dataset.cardId === expandedId) return;
+  collapse();
+});
+
+/* ---------- drag and drop ---------- */
+
+function positionIndicator(cardsEl, clientY, colour) {
+  indicator.style.background = colour;
+  indicator.style.boxShadow = '0 0 8px ' + colour + '99';
+  var siblings = cardsEl.querySelectorAll('.card:not(.dragging)');
+  for (var i = 0; i < siblings.length; i++) {
+    var rect = siblings[i].getBoundingClientRect();
+    if (clientY < rect.top + rect.height / 2) {
+      cardsEl.insertBefore(indicator, siblings[i]);
+      return;
+    }
+  }
+  cardsEl.appendChild(indicator);
+}
+
+function onDrop(e, cardsEl, colIndex) {
+  e.preventDefault();
+  if (!drag) return;
+
+  // target index = cards above the indicator, not counting the one being dragged
+  var index = 0;
+  var children = cardsEl.children;
+  for (var i = 0; i < children.length; i++) {
+    if (children[i] === indicator) break;
+    if (children[i].classList.contains('card') && children[i].dataset.cardId !== drag.id) index++;
+  }
+  if (!cardsEl.contains(indicator)) index = state.columns[colIndex].length;
+
+  var found = findCard(drag.id);
+  if (found) {
+    var moved = state.columns[found.col].splice(found.idx, 1)[0];
+    if (found.col === colIndex && found.idx < index) { /* index already excludes the moved card */ }
+    state.columns[colIndex].splice(index, 0, moved);
+    save();
+  }
+  cleanupDrag();
+  render();
+}
+
+function cleanupDrag() {
+  lastDragEnd = Date.now();
+  drag = null;
+  if (indicator.parentNode) indicator.parentNode.removeChild(indicator);
+  var dragging = board.querySelector('.card.dragging');
+  if (dragging) dragging.classList.remove('dragging');
+}
+
+/* ---------- export and reset ---------- */
+
+function download(filename, content, type) {
+  var blob = new Blob([content], { type: type });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+
+function exportMarkdown() {
+  normaliseOpenCard();
+  var lines = [
+    '# MEBS Domain Board',
+    '',
+    '_A thinking tool — not a behaviour support plan. Exported ' +
+      new Date().toLocaleDateString('en-AU') + '._',
+    ''
+  ];
+  DOMAINS.forEach(function (dom, i) {
+    lines.push('## ' + (i + 1) + '. ' + dom.name);
+    lines.push('');
+    if (state.columns[i].length === 0) {
+      lines.push('_No cards yet._');
+    } else {
+      state.columns[i].forEach(function (card) {
+        lines.push('- ' + card.title);
+        if (card.note && card.note.trim()) {
+          card.note.split('\n').forEach(function (noteLine) {
+            if (noteLine.trim()) lines.push('  - ' + noteLine.trim());
+          });
+        }
+      });
+    }
+    lines.push('');
+  });
+  download('mebs-domain-board.md', lines.join('\n'), 'text/markdown');
+}
+
+function exportJson() {
+  normaliseOpenCard();
+  var out = {
+    app: 'MEBS minimal variations — Domain Board',
+    note: 'A thinking tool — not a behaviour support plan.',
+    exported: new Date().toISOString(),
+    domains: DOMAINS.map(function (dom, i) {
+      return {
+        domain: (i + 1) + '. ' + dom.name,
+        cards: state.columns[i].map(function (card) {
+          return { title: card.title, note: card.note || '' };
+        })
+      };
+    })
+  };
+  download('mebs-domain-board.json', JSON.stringify(out, null, 2), 'application/json');
+}
+
+document.getElementById('export-md').addEventListener('click', exportMarkdown);
+document.getElementById('export-json').addEventListener('click', exportJson);
+document.getElementById('reset').addEventListener('click', function () {
+  if (!confirm('Replace everything on this board with the sample case (“Alex”)? Your current cards will be lost.')) return;
+  state = seedData();
+  expandedId = null;
+  addingCol = null;
+  save();
+  render();
+});
+
+render();
+</script>
+
+</body>
+</html>

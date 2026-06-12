@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>One-Page Formulation — MEBS minimal variations</title>
+<style>
+  :root {
+    --bg: #131318;
+    --surface: #1d1d26;
+    --surface-2: #15151c;
+    --border: rgba(255,255,255,.08);
+    --text: #e9e9f2;
+    --muted: #9a9ab0;
+    --lav: #c4b5fd;
+    --blue: #93c5fd;
+    --mint: #86efac;
+    --rose: #fda4af;
+    --amber: #fcd34d;
+    /* deeper, print-safe variants for the light paper */
+    --p-lav: #7c6fd0;
+    --p-mint: #2f9e63;
+    --p-rose: #d05a6e;
+    --p-amber: #b58a2a;
+    --paper: #faf9f6;
+    --p-ink: #2a2a33;
+    --p-muted: #71717f;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- header ---------- */
+  .topbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    padding: 10px 18px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar .back {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 5px 10px;
+    white-space: nowrap;
+  }
+  .topbar .back:hover { color: var(--text); border-color: rgba(255,255,255,.2); }
+  .topbar h1 { font-size: 15px; font-weight: 650; margin: 0; }
+  .topbar .tagline { font-size: 12.5px; color: var(--muted); }
+  .topbar .note {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .topbar .actions { display: flex; gap: 8px; }
+
+  .btn {
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .btn:hover { border-color: rgba(255,255,255,.22); }
+  .btn.primary {
+    background: rgba(134,239,172,.12);
+    border-color: rgba(134,239,172,.35);
+    color: var(--mint);
+  }
+  .btn.quiet { color: var(--muted); }
+
+  /* ---------- layout ---------- */
+  .layout {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+
+  .form-pane {
+    width: 420px;
+    flex: 0 0 420px;
+    overflow-y: auto;
+    padding: 18px;
+    border-right: 1px solid var(--border);
+  }
+
+  .preview-pane {
+    flex: 1;
+    overflow: auto;
+    padding: 28px 24px 48px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  @media (max-width: 920px) {
+    .layout { flex-direction: column; overflow: visible; }
+    .form-pane { width: 100%; flex: none; border-right: none; border-bottom: 1px solid var(--border); }
+    body { height: auto; }
+  }
+
+  /* ---------- form ---------- */
+  .fsection {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px 16px;
+    margin-bottom: 14px;
+  }
+  .fsection h2 {
+    margin: 0 0 4px;
+    font-size: 13px;
+    font-weight: 650;
+    letter-spacing: .01em;
+  }
+  .fsection h2 .num {
+    display: inline-block;
+    color: var(--muted);
+    font-weight: 500;
+    margin-right: 6px;
+  }
+  .fsection .hint {
+    margin: 0 0 10px;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .fsection label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--muted);
+    margin: 10px 0 4px;
+  }
+  .fsection input,
+  .fsection textarea {
+    width: 100%;
+    font: inherit;
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--text);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    resize: vertical;
+  }
+  .fsection input:focus,
+  .fsection textarea:focus {
+    outline: none;
+    border-color: rgba(196,181,253,.5);
+  }
+  .accent-mint h2 { color: var(--mint); }
+  .accent-rose h2 { color: var(--rose); }
+  .accent-lav  h2 { color: var(--lav); }
+  .accent-amber h2 { color: var(--amber); }
+  .accent-blue h2 { color: var(--blue); }
+
+  /* ---------- paper preview ---------- */
+  .paper {
+    width: min(760px, 100%);
+    background: var(--paper);
+    color: var(--p-ink);
+    border-radius: 6px;
+    box-shadow: 0 10px 44px rgba(0,0,0,.55);
+    padding: 34px 40px 26px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .paper h1 {
+    margin: 0;
+    font-size: 25px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #1d1d24;
+  }
+  .paper .subtitle {
+    margin: 3px 0 16px;
+    font-size: 12.5px;
+    color: var(--p-muted);
+  }
+  .p-section { margin: 0 0 14px; }
+  .p-section h2 {
+    margin: 0 0 5px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+  }
+  .p-section ul {
+    margin: 4px 0 0;
+    padding-left: 18px;
+  }
+  .p-section li { margin: 2px 0; }
+  .p-empty { color: var(--p-muted); font-style: italic; margin: 2px 0 0; }
+
+  /* strengths band */
+  .p-strengths {
+    background: rgba(47,158,99,.09);
+    border: 1px solid rgba(47,158,99,.25);
+    border-radius: 10px;
+    padding: 10px 14px 12px;
+  }
+  .p-strengths h2 { color: var(--p-mint); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .chip {
+    background: #fff;
+    border: 1px solid rgba(47,158,99,.4);
+    color: #1f6e44;
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-size: 12px;
+  }
+
+  .p-goals h2 { color: var(--p-mint); }
+  .p-goals { border-left: 3px solid rgba(47,158,99,.5); padding-left: 12px; }
+
+  /* what's happening — deliberately quiet */
+  .p-happening {
+    border-left: 3px solid rgba(208,90,110,.45);
+    padding-left: 12px;
+    font-size: 12.5px;
+  }
+  .p-happening h2 { color: var(--p-rose); }
+  .p-happening .cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 22px;
+  }
+  .p-happening h3 {
+    margin: 2px 0 1px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--p-muted);
+  }
+
+  /* why — held lightly */
+  .p-why {
+    background: rgba(124,111,208,.08);
+    border: 1px solid rgba(124,111,208,.22);
+    border-radius: 10px;
+    padding: 10px 14px 12px;
+  }
+  .p-why h2 { color: var(--p-lav); }
+  .p-why .held {
+    font-size: 11.5px;
+    color: var(--p-muted);
+    font-style: italic;
+    margin: 0 0 2px;
+  }
+  .p-why li { font-style: italic; }
+
+  /* what we'll try */
+  .p-try h2 { color: var(--p-mint); }
+  .p-try .cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0 18px;
+  }
+  .p-try h3 {
+    margin: 4px 0 2px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--p-mint);
+  }
+  .p-try ul { padding-left: 16px; font-size: 12.5px; }
+
+  /* how we'll know */
+  .p-know {
+    border-left: 3px solid rgba(181,138,42,.55);
+    padding-left: 12px;
+  }
+  .p-know h2 { color: var(--p-amber); }
+  .review-pill {
+    display: inline-block;
+    margin-top: 7px;
+    background: rgba(181,138,42,.12);
+    border: 1px solid rgba(181,138,42,.4);
+    color: #8a6a20;
+    border-radius: 999px;
+    padding: 2px 11px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .p-footer {
+    margin-top: 18px;
+    padding-top: 9px;
+    border-top: 1px solid rgba(0,0,0,.12);
+    font-size: 11px;
+    font-style: italic;
+    color: var(--p-muted);
+  }
+
+  /* ---------- print: only the paper ---------- */
+  @page { size: A4; margin: 11mm; }
+  @media print {
+    body { display: block; height: auto; background: #fff; }
+    .topbar, .form-pane { display: none !important; }
+    .layout { display: block; }
+    .preview-pane { display: block; padding: 0; overflow: visible; }
+    .paper {
+      width: 100%;
+      box-shadow: none;
+      border-radius: 0;
+      padding: 0;
+      font-size: 12px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .paper * {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="back" href="./index.html">&larr; All variations</a>
+  <div>
+    <h1>One-Page Formulation</h1>
+    <div class="tagline">The deliverable is a document</div>
+  </div>
+  <div class="note">A thinking tool — not a BSP generator. Data stays in this browser.</div>
+  <div class="actions">
+    <button class="btn primary" id="btnPrint" type="button">Print / Save as PDF</button>
+    <button class="btn" id="btnExport" type="button">Export Markdown</button>
+    <button class="btn quiet" id="btnReset" type="button">Reset sample</button>
+  </div>
+</header>
+
+<main class="layout">
+
+  <section class="form-pane">
+    <form id="form" autocomplete="off">
+
+      <div class="fsection accent-mint">
+        <h2><span class="num">1</span><span id="legendAbout">About &amp; strengths</span></h2>
+        <p class="hint">The person opens the page — start with who they are at their best.</p>
+        <label for="name">Name</label>
+        <input id="name" name="name" type="text">
+        <p class="hint" style="margin-top:4px">Consider using a pseudonym if this document may travel.</p>
+        <label for="strengths">Strengths &amp; interests <em>(one per line)</em></label>
+        <textarea id="strengths" name="strengths" rows="4"></textarea>
+      </div>
+
+      <div class="fsection accent-mint">
+        <h2><span class="num">2</span>What a good life looks like</h2>
+        <p class="hint">Goals in the person's own terms — one per line.</p>
+        <label for="goals">Good-life goals</label>
+        <textarea id="goals" name="goals" rows="3"></textarea>
+      </div>
+
+      <div class="fsection accent-rose">
+        <h2><span class="num">3</span>What's happening</h2>
+        <p class="hint">Describe plainly and briefly — this never dominates the page.</p>
+        <label for="behaviours">Behaviour patterns <em>(one per line)</em></label>
+        <textarea id="behaviours" name="behaviours" rows="3"></textarea>
+        <label for="warnings">Early warning signs <em>(one per line)</em></label>
+        <textarea id="warnings" name="warnings" rows="3"></textarea>
+      </div>
+
+      <div class="fsection accent-lav">
+        <h2><span class="num">4</span>Why we think it happens</h2>
+        <p class="hint">Hypotheses, one per line. The page frames each one cautiously — guesses, held lightly.</p>
+        <label for="hypotheses">Hypotheses</label>
+        <textarea id="hypotheses" name="hypotheses" rows="4"></textarea>
+      </div>
+
+      <div class="fsection accent-blue">
+        <h2><span class="num">5</span>What we'll try</h2>
+        <p class="hint">One idea per line in each group.</p>
+        <label for="proactive">Proactive supports</label>
+        <textarea id="proactive" name="proactive" rows="4"></textarea>
+        <label for="skills">Skills to build</label>
+        <textarea id="skills" name="skills" rows="3"></textarea>
+        <label for="responses">How we respond</label>
+        <textarea id="responses" name="responses" rows="3"></textarea>
+      </div>
+
+      <div class="fsection accent-amber">
+        <h2><span class="num">6</span>How we'll know</h2>
+        <p class="hint">What we'll watch, and when we'll look again.</p>
+        <label for="data">Data to collect <em>(one per line)</em></label>
+        <textarea id="data" name="data" rows="3"></textarea>
+        <label for="reviewDate">Review date</label>
+        <input id="reviewDate" name="reviewDate" type="date">
+      </div>
+
+    </form>
+  </section>
+
+  <section class="preview-pane">
+    <article class="paper" id="paper" aria-live="polite"></article>
+  </section>
+
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var KEY = 'mebs-min-onepage';
+  var FIELDS = ['name', 'strengths', 'goals', 'behaviours', 'warnings',
+                'hypotheses', 'proactive', 'skills', 'responses', 'data', 'reviewDate'];
+
+  /* ---------- seed ---------- */
+
+  function isoLocal(d) {
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+
+  function seedData() {
+    var review = new Date();
+    review.setDate(review.getDate() + 28);
+    return {
+      name: 'Alex (pseudonym)',
+      strengths: 'Funny and social\nLoves helping younger kids\nStrong visual learner',
+      goals: 'More say in his daily routine\nKeep helping at lunch club',
+      behaviours: 'Hitting out and shouting, mostly around transitions',
+      warnings: 'Goes quiet\nPaces\nClenches fists',
+      hypotheses: 'May communicate a need for control and predictability\nMay serve escape from writing demands\nCommunication breakdowns may contribute (low confidence)',
+      proactive: 'Visual schedule with advance warning of transitions\nOffer choices at transition points\nChunk writing demands\nStaff pause and listen first',
+      skills: 'Asking for a break\nChoice-making at transitions',
+      responses: 'Calm, low-demand stance\nReduce audience\nOffer exit to a quiet space',
+      data: 'Sleep diary\nABC chart on transitions\nOpen question: pain or health review needed?',
+      reviewDate: isoLocal(review)
+    };
+  }
+
+  /* ---------- storage ---------- */
+
+  function loadData() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return null;
+      var obj = JSON.parse(raw);
+      return (obj && typeof obj === 'object') ? obj : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function getForm() {
+    var out = {};
+    FIELDS.forEach(function (f) {
+      out[f] = document.getElementById(f).value;
+    });
+    return out;
+  }
+
+  function setForm(data) {
+    FIELDS.forEach(function (f) {
+      document.getElementById(f).value = (data[f] != null) ? data[f] : '';
+    });
+  }
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(getForm())); } catch (e) { /* private mode etc. */ }
+  }
+
+  /* ---------- helpers ---------- */
+
+  function esc(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function lines(text) {
+    return String(text || '').split('\n')
+      .map(function (l) { return l.trim(); })
+      .filter(function (l) { return l.length > 0; });
+  }
+
+  function listHtml(items, emptyText) {
+    if (!items.length) return '<p class="p-empty">' + esc(emptyText || 'Nothing here yet.') + '</p>';
+    return '<ul>' + items.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>';
+  }
+
+  /* Cautious framing: leave lines that already hedge; soften the rest. */
+  function heldLightly(line) {
+    if (/\b(may|might|could|perhaps|possibly|maybe|wonder|unsure|unclear|seems?)\b/i.test(line)) {
+      return line;
+    }
+    return 'It may be that ' + line.charAt(0).toLowerCase() + line.slice(1);
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return 'to be confirmed';
+    var parts = iso.split('-');
+    var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    if (isNaN(d.getTime())) return 'to be confirmed';
+    return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  function todayLong() {
+    return new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  function firstName(name) {
+    var n = String(name || '').trim();
+    if (!n) return 'this person';
+    return n.split(/[\s(]+/)[0];
+  }
+
+  /* ---------- render ---------- */
+
+  function render() {
+    var d = getForm();
+    var who = firstName(d.name);
+    var name = d.name.trim() || 'Unnamed (add a name or pseudonym)';
+
+    var strengths = lines(d.strengths);
+    var strengthsHtml = strengths.length
+      ? '<div class="chips">' + strengths.map(function (s) {
+          return '<span class="chip">' + esc(s) + '</span>';
+        }).join('') + '</div>'
+      : '<p class="p-empty">Add strengths — they open the page.</p>';
+
+    var hypotheses = lines(d.hypotheses).map(heldLightly);
+
+    document.getElementById('paper').innerHTML =
+      '<h1>' + esc(name) + '</h1>' +
+      '<p class="subtitle">One-page formulation — a shared picture for family and team</p>' +
+
+      '<section class="p-section p-strengths">' +
+        '<h2>' + esc(who) + '&rsquo;s strengths</h2>' +
+        strengthsHtml +
+      '</section>' +
+
+      '<section class="p-section p-goals">' +
+        '<h2>What a good life looks like</h2>' +
+        listHtml(lines(d.goals), 'Add good-life goals.') +
+      '</section>' +
+
+      '<section class="p-section p-happening">' +
+        '<h2>What&rsquo;s happening</h2>' +
+        '<div class="cols">' +
+          '<div><h3>Behaviour patterns</h3>' + listHtml(lines(d.behaviours), '—') + '</div>' +
+          '<div><h3>Early warning signs</h3>' + listHtml(lines(d.warnings), '—') + '</div>' +
+        '</div>' +
+      '</section>' +
+
+      '<section class="p-section p-why">' +
+        '<h2>Why we think it happens</h2>' +
+        '<p class="held">Our current best guesses — held lightly</p>' +
+        listHtml(hypotheses, 'Add hypotheses.') +
+      '</section>' +
+
+      '<section class="p-section p-try">' +
+        '<h2>What we&rsquo;ll try</h2>' +
+        '<div class="cols">' +
+          '<div><h3>Proactive supports</h3>' + listHtml(lines(d.proactive), '—') + '</div>' +
+          '<div><h3>Skills to build</h3>' + listHtml(lines(d.skills), '—') + '</div>' +
+          '<div><h3>How we respond</h3>' + listHtml(lines(d.responses), '—') + '</div>' +
+        '</div>' +
+      '</section>' +
+
+      '<section class="p-section p-know">' +
+        '<h2>How we&rsquo;ll know</h2>' +
+        listHtml(lines(d.data), 'Add data to collect.') +
+        '<span class="review-pill">Review: ' + esc(fmtDate(d.reviewDate)) + '</span>' +
+      '</section>' +
+
+      '<footer class="p-footer">Living document — formulation, not a Behaviour Support Plan. Drafted ' +
+        esc(todayLong()) + '.</footer>';
+
+    document.getElementById('legendAbout').textContent =
+      'About ' + (d.name.trim() ? who : '…') + ' & strengths';
+  }
+
+  /* ---------- markdown export ---------- */
+
+  function mdList(items) {
+    if (!items.length) return '_—_\n';
+    return items.map(function (l) { return '- ' + l; }).join('\n') + '\n';
+  }
+
+  function buildMarkdown() {
+    var d = getForm();
+    var name = d.name.trim() || 'Unnamed';
+    var md = '';
+    md += '# ' + name + ' — one-page formulation\n\n';
+    md += '_A shared picture for family and team. Living document — formulation, not a Behaviour Support Plan. Drafted ' + todayLong() + '._\n\n';
+    md += '## ' + firstName(d.name) + '’s strengths\n\n' + mdList(lines(d.strengths)) + '\n';
+    md += '## What a good life looks like\n\n' + mdList(lines(d.goals)) + '\n';
+    md += '## What’s happening\n\n';
+    md += '### Behaviour patterns\n\n' + mdList(lines(d.behaviours)) + '\n';
+    md += '### Early warning signs\n\n' + mdList(lines(d.warnings)) + '\n';
+    md += '## Why we think it happens — our current best guesses, held lightly\n\n';
+    md += mdList(lines(d.hypotheses).map(heldLightly)) + '\n';
+    md += '## What we’ll try\n\n';
+    md += '### Proactive supports\n\n' + mdList(lines(d.proactive)) + '\n';
+    md += '### Skills to build\n\n' + mdList(lines(d.skills)) + '\n';
+    md += '### How we respond\n\n' + mdList(lines(d.responses)) + '\n';
+    md += '## How we’ll know\n\n' + mdList(lines(d.data)) + '\n';
+    md += '**Review date:** ' + fmtDate(d.reviewDate) + '\n';
+    return md;
+  }
+
+  function exportMarkdown() {
+    var d = getForm();
+    var slug = (d.name.trim() || 'formulation')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'formulation';
+    var blob = new Blob([buildMarkdown()], { type: 'text/markdown' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = slug + '-one-page-formulation.md';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  /* ---------- wire up ---------- */
+
+  document.getElementById('form').addEventListener('input', function () {
+    save();
+    render();
+  });
+
+  document.getElementById('btnPrint').addEventListener('click', function () {
+    window.print();
+  });
+
+  document.getElementById('btnExport').addEventListener('click', exportMarkdown);
+
+  document.getElementById('btnReset').addEventListener('click', function () {
+    if (confirm('Replace the current draft with the sample case? Your edits will be lost.')) {
+      setForm(seedData());
+      save();
+      render();
+    }
+  });
+
+  /* first load: stored draft, or the seed case */
+  var stored = loadData();
+  setForm(stored || seedData());
+  if (!stored) save();
+  render();
+
+})();
+</script>
+
+</body>
+</html>

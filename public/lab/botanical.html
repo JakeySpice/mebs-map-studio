@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pocket Botanical — MEBS minimal variation</title>
+<style>
+  :root{
+    --bg:#131318;
+    --surface:#1d1d26;
+    --border:rgba(255,255,255,.08);
+    --text:#e9e9f2;
+    --muted:#9a9ab0;
+    --lavender:#c4b5fd;
+    --blue:#93c5fd;
+    --mint:#86efac;
+    --rose:#fda4af;
+    --amber:#fcd34d;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size:15px;
+    line-height:1.45;
+    min-height:100vh;
+  }
+
+  /* ---------- header ---------- */
+  header{
+    display:flex;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:8px 16px;
+    padding:10px 20px;
+    background:var(--surface);
+    border-bottom:1px solid var(--border);
+  }
+  header .back{
+    color:var(--muted);
+    text-decoration:none;
+    font-size:13px;
+    white-space:nowrap;
+  }
+  header .back:hover{ color:var(--text); }
+  header h1{
+    margin:0;
+    font-size:16px;
+    font-weight:650;
+    letter-spacing:.2px;
+    white-space:nowrap;
+  }
+  header .tagline{
+    color:var(--muted);
+    font-size:13px;
+    font-style:italic;
+    white-space:nowrap;
+  }
+  header .notice{
+    color:var(--muted);
+    font-size:12px;
+    margin-left:auto;
+  }
+  header .actions{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  button{
+    font:inherit;
+    cursor:pointer;
+  }
+  .btn{
+    background:transparent;
+    color:var(--text);
+    border:1px solid var(--border);
+    border-radius:999px;
+    padding:5px 14px;
+    font-size:13px;
+    transition:border-color .15s, background .15s;
+  }
+  .btn:hover{ border-color:rgba(255,255,255,.25); background:rgba(255,255,255,.04); }
+  .btn.danger:hover{ border-color:rgba(253,164,175,.5); color:var(--rose); }
+
+  /* ---------- stage ---------- */
+  #stage{
+    position:relative;
+    max-width:1060px;
+    margin:0 auto;
+    padding:22px 20px 60px;
+  }
+  #stems{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    pointer-events:none;
+  }
+  .case-note{
+    text-align:center;
+    color:var(--muted);
+    font-size:12.5px;
+    margin:0 0 18px;
+  }
+  .case-note strong{ color:var(--text); font-weight:600; }
+
+  /* ---------- zones ---------- */
+  .zone{
+    border-radius:18px;
+    border:1px dashed;
+    padding:14px 18px 18px;
+    margin:0 0 34px;
+  }
+  .zone-head{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    margin-bottom:12px;
+  }
+  .zone-tag{
+    font-size:10px;
+    letter-spacing:1.6px;
+    text-transform:uppercase;
+    color:var(--muted);
+  }
+  .zone-head h2{
+    margin:0;
+    font-size:14px;
+    font-weight:600;
+  }
+  .zone-head .count{
+    color:var(--muted);
+    font-weight:400;
+    font-size:12px;
+  }
+  .add{
+    margin-left:auto;
+    width:24px;
+    height:24px;
+    border-radius:50%;
+    border:1px solid var(--border);
+    background:transparent;
+    color:var(--muted);
+    font-size:15px;
+    line-height:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex:none;
+    align-self:center;
+  }
+  .add:hover{ color:var(--text); border-color:rgba(255,255,255,.3); }
+  .empty{
+    color:var(--muted);
+    font-size:12.5px;
+    font-style:italic;
+    opacity:.7;
+  }
+
+  /* zone tints */
+  .zone-canopy{
+    background:rgba(134,239,172,.055);
+    border-color:rgba(134,239,172,.3);
+    padding:20px 22px 26px;
+  }
+  .zone-canopy .zone-head h2{ font-size:16px; }
+  .zone-branches{
+    background:rgba(147,197,253,.04);
+    border-color:rgba(147,197,253,.22);
+  }
+  .zone-trunk{
+    background:rgba(196,181,253,.05);
+    border-color:rgba(196,181,253,.28);
+    margin:0;
+  }
+  .zone-behaviour{
+    background:rgba(253,164,175,.045);
+    border-color:rgba(253,164,175,.25);
+    margin:0;
+  }
+  .zone-roots{
+    background:rgba(147,197,253,.05);
+    border-color:rgba(147,197,253,.25);
+    margin-bottom:0;
+  }
+
+  /* trunk row: spacer | trunk centred | behaviour beside */
+  .trunk-row{
+    display:grid;
+    grid-template-columns:1fr minmax(250px, 340px) 1fr;
+    gap:26px;
+    align-items:start;
+    margin-bottom:34px;
+  }
+  .side-spacer{ min-height:1px; }
+  .zone-behaviour{ max-width:300px; }
+  @media (max-width:760px){
+    .trunk-row{
+      grid-template-columns:1fr;
+      gap:22px;
+    }
+    .side-spacer{ display:none; }
+    .zone-trunk{ max-width:360px; margin:0 auto; width:100%; }
+    .zone-behaviour{ margin-left:auto; }  /* still beside-ish, never centred */
+  }
+
+  /* ---------- chips ---------- */
+  .chips{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px 12px;
+    justify-content:center;
+    position:relative;
+  }
+  .chip{
+    border-radius:999px;
+    border:1px solid;
+    padding:6px 14px;
+    font-size:13.5px;
+    background:transparent;
+    text-align:left;
+    max-width:300px;
+    transition:filter .15s;
+  }
+  .chip:hover{ filter:brightness(1.25); }
+  .chip.mint{ background:rgba(134,239,172,.1); border-color:rgba(134,239,172,.35); color:var(--mint); }
+  .chip.blue{ background:rgba(147,197,253,.1); border-color:rgba(147,197,253,.35); color:var(--blue); }
+  .chip.lavender{ background:rgba(196,181,253,.1); border-color:rgba(196,181,253,.35); color:var(--lavender); }
+  .chip.rose{ background:rgba(253,164,175,.1); border-color:rgba(253,164,175,.35); color:var(--rose); }
+
+  /* loose cloud (canopy) */
+  .cloud{ padding:4px 0; }
+  .cloud .chip:nth-child(odd){ transform:translateY(5px); }
+  .cloud .chip:nth-child(3n){ transform:translateY(-6px) rotate(-1deg); }
+  .cloud .chip:nth-child(4n+1){ transform:translateY(8px) rotate(1deg); }
+
+  /* fan (branches) */
+  .fan{ justify-content:space-around; padding:4px 6px; }
+  .fan .chip:nth-child(odd){ transform:rotate(-2deg) translateY(4px); }
+  .fan .chip:nth-child(even){ transform:rotate(2deg) translateY(-3px); }
+
+  /* narrow stack (trunk) */
+  .stack{
+    flex-direction:column;
+    align-items:stretch;
+    gap:10px;
+  }
+  .stack .chip{
+    border-radius:14px;
+    max-width:none;
+    padding:8px 13px;
+  }
+  .badge{
+    display:inline-block;
+    font-size:9px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    border:1px solid rgba(196,181,253,.4);
+    border-radius:999px;
+    padding:1px 7px;
+    margin-right:7px;
+    color:rgba(196,181,253,.85);
+    vertical-align:1px;
+  }
+
+  /* small cluster (behaviour beside trunk) */
+  .cluster{
+    flex-direction:column;
+    align-items:flex-start;
+    gap:9px;
+  }
+  .cluster .chip{ border-radius:14px; }
+
+  /* spread (roots) */
+  .spread{ padding:6px 0 2px; }
+  .spread .chip:nth-child(odd){ transform:translateY(7px) rotate(1deg); }
+  .spread .chip:nth-child(even){ transform:translateY(-2px) rotate(-1deg); }
+  .spread .chip:nth-child(4n){ transform:translateY(12px); }
+
+  /* inline add input */
+  .chip-input{
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,.3);
+    background:var(--surface);
+    color:var(--text);
+    font:inherit;
+    font-size:13.5px;
+    padding:6px 14px;
+    width:220px;
+    outline:none;
+  }
+  .chip-input:focus{ border-color:var(--amber); }
+
+  /* ---------- popover ---------- */
+  #popover{
+    position:absolute;
+    z-index:10;
+    width:260px;
+    background:var(--surface);
+    border:1px solid rgba(255,255,255,.16);
+    border-radius:14px;
+    padding:12px;
+    box-shadow:0 10px 32px rgba(0,0,0,.55);
+  }
+  #popover label{
+    display:block;
+    font-size:11px;
+    color:var(--muted);
+    letter-spacing:.6px;
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  #pop-input{
+    width:100%;
+    border:1px solid var(--border);
+    border-radius:9px;
+    background:var(--bg);
+    color:var(--text);
+    font:inherit;
+    font-size:13.5px;
+    padding:7px 10px;
+    outline:none;
+  }
+  #pop-input:focus{ border-color:rgba(196,181,253,.5); }
+  .pop-actions{
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    margin-top:10px;
+  }
+  .pop-actions .btn{ padding:4px 12px; font-size:12.5px; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="back" href="./index.html">&larr; All variations</a>
+  <h1>Pocket Botanical</h1>
+  <span class="tagline">The metaphor, pocket-sized</span>
+  <span class="notice">A thinking tool &mdash; not a BSP generator. Data stays in this browser.</span>
+  <div class="actions">
+    <button class="btn" id="export-md">Export Markdown</button>
+    <button class="btn" id="export-json">Export JSON</button>
+    <button class="btn danger" id="reset">Reset sample</button>
+  </div>
+</header>
+
+<main id="stage">
+  <svg id="stems" aria-hidden="true"></svg>
+
+  <p class="case-note">Sample case: <strong>Alex (pseudonym)</strong> &mdash; fictional and de-identified.</p>
+
+  <!-- 1. CANOPY -->
+  <section class="zone zone-canopy" id="zone-canopy">
+    <div class="zone-head">
+      <span class="zone-tag">Canopy</span>
+      <h2>Quality of life <span class="count" id="count-canopy"></span></h2>
+      <button class="add" data-zone="canopy" title="Add to Quality of life">+</button>
+    </div>
+    <div class="chips cloud" id="chips-canopy"></div>
+  </section>
+
+  <!-- 2. BRANCHES -->
+  <section class="zone zone-branches" id="zone-branches">
+    <div class="zone-head">
+      <span class="zone-tag">Branches</span>
+      <h2>Supports &amp; skills <span class="count" id="count-branches"></span></h2>
+      <button class="add" data-zone="branches" title="Add to Supports &amp; skills">+</button>
+    </div>
+    <div class="chips fan" id="chips-branches"></div>
+  </section>
+
+  <!-- 3. TRUNK (centre) with BEHAVIOUR beside it -->
+  <div class="trunk-row">
+    <div class="side-spacer"></div>
+    <section class="zone zone-trunk" id="zone-trunk">
+      <div class="zone-head">
+        <span class="zone-tag">Trunk</span>
+        <h2>Formulation &mdash; why we think it happens <span class="count" id="count-trunk"></span></h2>
+        <button class="add" data-zone="trunk" title="Add a hypothesis">+</button>
+      </div>
+      <div class="chips stack" id="chips-trunk"></div>
+    </section>
+    <section class="zone zone-behaviour" id="zone-behaviour">
+      <div class="zone-head">
+        <span class="zone-tag">Beside the trunk</span>
+        <h2>Behaviour patterns &amp; signals <span class="count" id="count-behaviour"></span></h2>
+        <button class="add" data-zone="behaviour" title="Add a behaviour pattern or signal">+</button>
+      </div>
+      <div class="chips cluster" id="chips-behaviour"></div>
+    </section>
+  </div>
+
+  <!-- 4. ROOTS -->
+  <section class="zone zone-roots" id="zone-roots">
+    <div class="zone-head">
+      <span class="zone-tag">Roots</span>
+      <h2>Context &amp; ecology <span class="count" id="count-roots"></span></h2>
+      <button class="add" data-zone="roots" title="Add to Context &amp; ecology">+</button>
+    </div>
+    <div class="chips spread" id="chips-roots"></div>
+  </section>
+
+  <!-- chip popover -->
+  <div id="popover" hidden>
+    <label for="pop-input">Edit item</label>
+    <input id="pop-input" type="text">
+    <div class="pop-actions">
+      <button class="btn danger" id="pop-delete">Delete</button>
+      <button class="btn" id="pop-close">Close</button>
+    </div>
+  </div>
+</main>
+
+<script>
+(function(){
+  'use strict';
+
+  var STORE_KEY = 'mebs-min-botanical';
+
+  var ZONES = {
+    canopy:    { name:'Quality of life',                         md:'Quality of life (canopy)' },
+    branches:  { name:'Supports & skills',                       md:'Supports & skills (branches)' },
+    trunk:     { name:'Formulation — why we think it happens',   md:'Formulation — why we think it happens (trunk)' },
+    behaviour: { name:'Behaviour patterns & signals',            md:'Behaviour patterns & signals (beside the trunk)' },
+    roots:     { name:'Context & ecology',                       md:'Context & ecology (roots)' }
+  };
+  var ZONE_ORDER = ['canopy', 'branches', 'trunk', 'behaviour', 'roots'];
+
+  function uid(){
+    return 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  function seedData(){
+    function items(texts){
+      return texts.map(function(t){ return { id: uid(), text: t }; });
+    }
+    return {
+      zones: {
+        canopy: items([
+          'More say in his daily routine',
+          'Keep helping at lunch club',
+          'Funny and social',
+          'Loves helping younger kids'
+        ]),
+        branches: items([
+          'Visual schedule with advance warning',
+          'Choices at transition points',
+          'Chunk writing demands',
+          'Staff pause and listen first',
+          'Asking for a break (skill)',
+          'Choice-making at transitions (skill)'
+        ]),
+        trunk: items([
+          'May communicate a need for control and predictability',
+          'May serve escape from writing demands',
+          'Communication breakdowns may contribute (low confidence)'
+        ]),
+        behaviour: items([
+          'Hitting out and shouting at transitions',
+          'Early warning: goes quiet, paces, clenches fists'
+        ]),
+        roots: items([
+          'Poor sleep (4–5 hours before school days)',
+          'Writing tasks at school',
+          'Adults talking over him',
+          'Unpredictable transitions'
+        ])
+      }
+    };
+  }
+
+  /* ---------- state ---------- */
+
+  var state;
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORE_KEY);
+      if(raw){
+        var parsed = JSON.parse(raw);
+        if(parsed && parsed.zones){
+          ZONE_ORDER.forEach(function(z){
+            if(!Array.isArray(parsed.zones[z])) parsed.zones[z] = [];
+          });
+          return parsed;
+        }
+      }
+    }catch(e){ /* corrupted store: fall through to seed */ }
+    return seedData();
+  }
+
+  function save(){
+    try{
+      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    }catch(e){ /* storage unavailable: keep working in-memory */ }
+  }
+
+  /* ---------- rendering ---------- */
+
+  var stage = document.getElementById('stage');
+  var svg = document.getElementById('stems');
+
+  function chipColour(zone, text){
+    if(zone === 'canopy') return 'mint';
+    if(zone === 'branches') return /\(skill\)/i.test(text) ? 'blue' : 'mint';
+    if(zone === 'trunk') return 'lavender';
+    if(zone === 'behaviour') return 'rose';
+    return 'blue';
+  }
+
+  function renderZone(zone){
+    var box = document.getElementById('chips-' + zone);
+    var items = state.zones[zone];
+    box.textContent = '';
+    if(items.length === 0){
+      var hint = document.createElement('span');
+      hint.className = 'empty';
+      hint.textContent = 'Nothing here yet — use + to add';
+      box.appendChild(hint);
+    }
+    items.forEach(function(item){
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip ' + chipColour(zone, item.text);
+      chip.dataset.zone = zone;
+      chip.dataset.id = item.id;
+      if(zone === 'trunk'){
+        var badge = document.createElement('span');
+        badge.className = 'badge';
+        badge.textContent = 'hypothesis';
+        chip.appendChild(badge);
+      }
+      chip.appendChild(document.createTextNode(item.text));
+      box.appendChild(chip);
+    });
+    document.getElementById('count-' + zone).textContent = '· ' + items.length;
+  }
+
+  function renderAll(){
+    ZONE_ORDER.forEach(renderZone);
+    drawStems();
+  }
+
+  /* ---------- stems (decorative SVG) ---------- */
+
+  var STEM_COLOURS = {
+    mint:     'rgba(134,239,172,.35)',
+    blue:     'rgba(147,197,253,.35)',
+    lavender: 'rgba(196,181,253,.4)',
+    rose:     'rgba(253,164,175,.45)'
+  };
+
+  function drawStems(){
+    var w = stage.clientWidth;
+    var h = stage.scrollHeight;
+    svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+
+    var sr = stage.getBoundingClientRect();
+    function pt(el, side, t){
+      var r = el.getBoundingClientRect();
+      var x = r.left - sr.left, y = r.top - sr.top;
+      if(side === 'top')    return [x + r.width * t, y];
+      if(side === 'bottom') return [x + r.width * t, y + r.height];
+      if(side === 'left')   return [x, y + r.height * t];
+      return [x + r.width, y + r.height * t]; /* right */
+    }
+    function vPath(a, b){
+      var m = (a[1] + b[1]) / 2;
+      return 'M ' + a[0] + ' ' + a[1] +
+             ' C ' + a[0] + ' ' + m + ', ' + b[0] + ' ' + m + ', ' +
+             b[0] + ' ' + b[1];
+    }
+    function hPath(a, b){
+      var m = (a[0] + b[0]) / 2;
+      return 'M ' + a[0] + ' ' + a[1] +
+             ' C ' + m + ' ' + a[1] + ', ' + m + ' ' + b[1] + ', ' +
+             b[0] + ' ' + b[1];
+    }
+
+    var canopy = document.getElementById('zone-canopy');
+    var branches = document.getElementById('zone-branches');
+    var trunk = document.getElementById('zone-trunk');
+    var behaviour = document.getElementById('zone-behaviour');
+    var roots = document.getElementById('zone-roots');
+
+    var stems = [];
+    /* roots cluster -> trunk base (spreading downward) */
+    stems.push({ d: vPath(pt(trunk, 'bottom', .5), pt(roots, 'top', .2)),  c: 'blue', w: 2 });
+    stems.push({ d: vPath(pt(trunk, 'bottom', .5), pt(roots, 'top', .5)),  c: 'blue', w: 2 });
+    stems.push({ d: vPath(pt(trunk, 'bottom', .5), pt(roots, 'top', .8)),  c: 'blue', w: 2 });
+    /* trunk top -> branches (fanning up) */
+    stems.push({ d: vPath(pt(trunk, 'top', .5), pt(branches, 'bottom', .28)), c: 'lavender', w: 2 });
+    stems.push({ d: vPath(pt(trunk, 'top', .5), pt(branches, 'bottom', .5)),  c: 'lavender', w: 2 });
+    stems.push({ d: vPath(pt(trunk, 'top', .5), pt(branches, 'bottom', .72)), c: 'lavender', w: 2 });
+    /* branches -> canopy */
+    stems.push({ d: vPath(pt(branches, 'top', .35), pt(canopy, 'bottom', .45)), c: 'mint', w: 2 });
+    stems.push({ d: vPath(pt(branches, 'top', .65), pt(canopy, 'bottom', .55)), c: 'mint', w: 2 });
+    /* behaviour cluster -> trunk side (thin link) */
+    var bp = pt(behaviour, 'left', .5);
+    var tp = pt(trunk, 'right', .5);
+    if(bp[0] > tp[0] + 10){
+      /* side-by-side layout: behaviour sits to the trunk's right */
+      stems.push({ d: hPath(bp, tp), c: 'rose', w: 1.5 });
+    }else{
+      /* stacked layout (narrow screens): link behaviour top to trunk bottom */
+      stems.push({ d: vPath(pt(behaviour, 'top', .5), pt(trunk, 'bottom', .7)), c: 'rose', w: 1.5 });
+    }
+
+    svg.textContent = '';
+    stems.forEach(function(s){
+      var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', s.d);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', STEM_COLOURS[s.c]);
+      path.setAttribute('stroke-width', s.w);
+      path.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(path);
+    });
+  }
+
+  var resizeTimer = null;
+  window.addEventListener('resize', function(){
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(drawStems, 120);
+  });
+
+  /* ---------- adding chips ---------- */
+
+  var activeAdd = null;
+
+  function cancelAdd(){
+    if(activeAdd && activeAdd.parentNode){
+      activeAdd.parentNode.removeChild(activeAdd);
+    }
+    activeAdd = null;
+    drawStems();
+  }
+
+  function startAdd(zone){
+    cancelAdd();
+    closePopover(false);
+    var box = document.getElementById('chips-' + zone);
+    var hint = box.querySelector('.empty');
+    if(hint) box.removeChild(hint);
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'chip-input';
+    input.placeholder = 'Add to ' + ZONES[zone].name + '…';
+    input.addEventListener('keydown', function(e){
+      if(e.key === 'Enter'){
+        var text = input.value.trim();
+        if(text){
+          state.zones[zone].push({ id: uid(), text: text });
+          activeAdd = null;
+          save();
+          renderAll();
+        }else{
+          cancelAdd();
+        }
+      }else if(e.key === 'Escape'){
+        cancelAdd();
+      }
+    });
+    input.addEventListener('blur', function(){
+      /* defer so Enter handling wins if it fired first */
+      setTimeout(function(){
+        if(activeAdd === input) cancelAdd();
+      }, 0);
+    });
+    box.appendChild(input);
+    activeAdd = input;
+    input.focus();
+    drawStems();
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.add'), function(btn){
+    btn.addEventListener('click', function(){
+      startAdd(btn.dataset.zone);
+    });
+  });
+
+  /* ---------- popover (edit / delete) ---------- */
+
+  var popover = document.getElementById('popover');
+  var popInput = document.getElementById('pop-input');
+  var popTarget = null; /* { zone, id } */
+
+  function findItem(zone, id){
+    var list = state.zones[zone];
+    for(var i = 0; i < list.length; i++){
+      if(list[i].id === id) return { list: list, index: i, item: list[i] };
+    }
+    return null;
+  }
+
+  function openPopover(chip){
+    cancelAdd();
+    popTarget = { zone: chip.dataset.zone, id: chip.dataset.id };
+    var found = findItem(popTarget.zone, popTarget.id);
+    if(!found) return;
+    popInput.value = found.item.text;
+
+    popover.hidden = false;
+    var sr = stage.getBoundingClientRect();
+    var cr = chip.getBoundingClientRect();
+    var x = cr.left - sr.left + cr.width / 2 - popover.offsetWidth / 2;
+    x = Math.max(8, Math.min(x, stage.clientWidth - popover.offsetWidth - 8));
+    var y = cr.bottom - sr.top + 8;
+    popover.style.left = x + 'px';
+    popover.style.top = y + 'px';
+    popInput.focus();
+    popInput.select();
+  }
+
+  function closePopover(commit){
+    if(popover.hidden) return;
+    if(commit && popTarget){
+      var found = findItem(popTarget.zone, popTarget.id);
+      var text = popInput.value.trim();
+      if(found && text && text !== found.item.text){
+        found.item.text = text;
+        save();
+        renderAll();
+      }
+    }
+    popover.hidden = true;
+    popTarget = null;
+  }
+
+  popInput.addEventListener('keydown', function(e){
+    if(e.key === 'Enter') closePopover(true);
+    else if(e.key === 'Escape') closePopover(false);
+  });
+
+  document.getElementById('pop-close').addEventListener('click', function(){
+    closePopover(true);
+  });
+
+  document.getElementById('pop-delete').addEventListener('click', function(){
+    if(!popTarget) return;
+    var found = findItem(popTarget.zone, popTarget.id);
+    if(found && confirm('Delete this item from the map?')){
+      found.list.splice(found.index, 1);
+      popover.hidden = true;
+      popTarget = null;
+      save();
+      renderAll();
+    }
+  });
+
+  /* open popover from any chip (event delegation survives re-renders) */
+  stage.addEventListener('click', function(e){
+    var chip = e.target.closest ? e.target.closest('.chip') : null;
+    if(chip){
+      openPopover(chip);
+    }
+  });
+
+  /* click elsewhere closes the popover (committing any edit) */
+  document.addEventListener('pointerdown', function(e){
+    if(popover.hidden) return;
+    if(popover.contains(e.target)) return;
+    if(e.target.closest && e.target.closest('.chip')) return;
+    closePopover(true);
+  });
+
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && !popover.hidden) closePopover(false);
+  });
+
+  /* ---------- export ---------- */
+
+  function download(filename, text, mime){
+    var blob = new Blob([text], { type: mime });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
+
+  document.getElementById('export-md').addEventListener('click', function(){
+    var lines = [];
+    lines.push('# Pocket Botanical — mini formulation map');
+    lines.push('');
+    lines.push('Sample case: Alex (pseudonym) — fictional and de-identified.');
+    lines.push('A thinking tool — not a Behaviour Support Plan.');
+    lines.push('Exported: ' + new Date().toLocaleDateString('en-AU'));
+    lines.push('');
+    ZONE_ORDER.forEach(function(zone){
+      lines.push('## ' + ZONES[zone].md);
+      lines.push('');
+      var items = state.zones[zone];
+      if(items.length === 0){
+        lines.push('_Nothing recorded yet._');
+      }else{
+        items.forEach(function(item){
+          lines.push('- ' + (zone === 'trunk' ? '(hypothesis) ' : '') + item.text);
+        });
+      }
+      lines.push('');
+    });
+    download('pocket-botanical.md', lines.join('\n'), 'text/markdown');
+  });
+
+  document.getElementById('export-json').addEventListener('click', function(){
+    var out = {
+      app: 'MEBS minimal variation — Pocket Botanical',
+      storageKey: STORE_KEY,
+      exported: new Date().toISOString(),
+      zones: state.zones
+    };
+    download('pocket-botanical.json', JSON.stringify(out, null, 2), 'application/json');
+  });
+
+  /* ---------- reset ---------- */
+
+  document.getElementById('reset').addEventListener('click', function(){
+    if(confirm('Replace everything on this map with the sample case (Alex)?')){
+      state = seedData();
+      save();
+      closePopover(false);
+      renderAll();
+    }
+  });
+
+  /* ---------- boot ---------- */
+
+  state = loadState();
+  save(); /* persist seed on first load */
+  renderAll();
+  /* second pass once layout settles (fonts/scrollbar) */
+  window.addEventListener('load', drawStems);
+})();
+</script>
+</body>
+</html>

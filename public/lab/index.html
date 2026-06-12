@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MEBS Minimal Lab</title>
+<style>
+  :root {
+    --bg: #131318;
+    --surface: #1d1d26;
+    --border: rgba(255, 255, 255, .08);
+    --text: #e9e9f2;
+    --muted: #9a9ab0;
+    --lavender: #c4b5fd;
+    --blue: #93c5fd;
+    --mint: #86efac;
+    --rose: #fda4af;
+    --amber: #fcd34d;
+    --paper: #faf9f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 48px 24px 64px; }
+
+  header h1 {
+    font-size: 32px;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+  }
+  header h1 .leaf { color: var(--mint); }
+  header .sub {
+    color: var(--muted);
+    max-width: 720px;
+    margin-top: 10px;
+    font-size: 15px;
+  }
+  header .sub strong { color: var(--text); font-weight: 600; }
+  .meta-note {
+    margin-top: 18px;
+    display: inline-block;
+    font-size: 13px;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 14px;
+  }
+  .meta-note b { color: var(--lavender); font-weight: 600; }
+
+  .grid {
+    margin-top: 36px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+    gap: 18px;
+  }
+  a.card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--accent, var(--lavender));
+    border-radius: 14px;
+    padding: 20px 20px 18px;
+    text-decoration: none;
+    color: var(--text);
+    transition: transform .12s ease, border-color .12s ease, background .12s ease;
+  }
+  a.card:hover {
+    transform: translateY(-2px);
+    background: #22222d;
+    border-color: rgba(255, 255, 255, .16);
+    border-top-color: var(--accent, var(--lavender));
+  }
+  .card .num {
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent, var(--lavender));
+    font-weight: 600;
+  }
+  .card h2 { font-size: 19px; font-weight: 650; letter-spacing: -0.01em; }
+  .card .tagline { color: var(--muted); font-size: 13.5px; margin-top: -4px; }
+  .card .question {
+    font-size: 13.5px;
+    font-style: italic;
+    color: var(--text);
+    opacity: .85;
+    border-left: 2px solid var(--accent, var(--lavender));
+    padding-left: 10px;
+  }
+  .kc { display: flex; flex-direction: column; gap: 5px; margin-top: 2px; font-size: 12.5px; }
+  .kc .row { display: flex; gap: 8px; }
+  .kc .lbl { flex: 0 0 44px; font-weight: 600; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding-top: 1px; }
+  .kc .keeps .lbl, .kc .row.keeps .lbl { color: var(--mint); }
+  .kc .row.cuts .lbl { color: var(--rose); }
+  .kc .val { color: var(--muted); }
+  .open {
+    margin-top: auto;
+    padding-top: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent, var(--lavender));
+  }
+
+  footer {
+    margin-top: 48px;
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  footer .pill-line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>MEBS Minimal Lab <span class="leaf">&#10047;</span></h1>
+    <p class="sub">
+      Seven off-shoots of <strong>MEBS Map Studio</strong>, each stripped to a different
+      <strong>irreducible core</strong> of the product — and nothing else. Open each one,
+      work the same case, and notice which essentials you actually reach for.
+    </p>
+    <p class="meta-note">
+      All seven load the same de-identified sample case — <b>Alex (pseudonym)</b> — and each
+      stores its data separately in this browser. Every variation is a single HTML file.
+    </p>
+  </header>
+
+  <div class="grid">
+
+    <a class="card" href="./mini-map.html" style="--accent: var(--lavender)">
+      <span class="num">Variation 01</span>
+      <h2>Mini Map</h2>
+      <p class="tagline">The signature map, distilled.</p>
+      <p class="question">How small can the NotebookLM-style map get and still be the product?</p>
+      <div class="kc">
+        <div class="row keeps"><span class="lbl">Keeps</span><span class="val">left-to-right tree, expand/collapse, pan &amp; zoom, inline edit, notes, JSON export</span></div>
+        <div class="row cuts"><span class="lbl">Cuts</span><span class="val">relationship layer, types, confidence, search, focus mode</span></div>
+      </div>
+      <span class="open">Open &rarr;</span>
+    </a>
+
+    <a class="card" href="./outliner.html" style="--accent: var(--blue)">
+      <span class="num">Variation 02</span>
+      <h2>Outliner</h2>
+      <p class="tagline">Type the formulation as fast as you think.</p>
+      <p class="question">During a live consult, is the fastest input mode just a keyboard outline?</p>
+      <div class="kc">
+        <div class="row keeps"><span class="lbl">Keeps</span><span class="val">nine MEBS domains, unlimited nesting, full keyboard model, Markdown export</span></div>
+        <div class="row cuts"><span class="lbl">Cuts</span><span class="val">the map entirely, relationships, notes, drag &amp; drop</span></div>
+      </div>
+      <span class="open">Open &rarr;</span>
+    </a>
+
+    <a class="card" href="./board.html" style="--accent: var(--mint)">
+      <span class="num">Variation 03</span>
+      <h2>Domain Board</h2>
+      <p class="tagline">Nine buckets, zero ceremony.</p>
+      <p class="question">Do practitioners need a map at all — or just well-labelled containers?</p>
+      <div class="kc">
+        <div class="row keeps"><span class="lbl">Keeps</span><span class="val">domains as columns, cards with notes, drag between domains, Markdown export</span></div>
+        <div class="row cuts"><span class="lbl">Cuts</span><span class="val">hierarchy beyond domain &rarr; card, map, links, types</span></div>
+      </div>
+      <span class="open">Open &rarr;</span>
+    </a>
+
+    <a class="card" href="./claims.html" style="--accent: var(--rose)">
+      <span class="num">Variation 04</span>
+      <h2>Claims &amp; Links</h2>
+      <p class="tagline">The formulation is the set of claims.</p>
+      <p class="question">Is a formulation just its clinical claims — sentences first, diagram second?</p>
+      <div class="kc">
+        <div class="row keeps"><span class="lbl">Keeps</span><span class="val">typed cross-links, readable claim sentences, arc diagram, filters, Markdown export</span></div>
+        <div class="row cuts"><span class="lbl">Cuts</span><span class="val">tree, map, domains, confidence scores</span></div>
+      </div>
+      <span class="open">Open &rarr;</span>
+    </a>
+
+    <a class="card" href="./pathway.html" style="--accent: var(--amber)">
+      <span class="num">Variation 05</span>
+      <h2>Escalation Pathway</h2>
+      <p class="tagline">The timeline a team needs in the room.</p>
+      <p class="question">Is the escalation chain — with paired supporter responses — the one view that matters?</p>
+      <div class="kc">
+        <div class="row keeps"><span class="lbl">Keeps</span><span class="val">five temporal stages, paired "what supporters do", hypotheses strip, strengths first</span></div>
+        <div class="row cuts"><span class="lbl">Cuts</span><span class="val">everything outside the timeline — map, domains, relationships</span></div>
+      </div>
+      <span class="open">Open &rarr;</span>
+    </a>
+
+    <a class="card" href="./one-page.html" style="--accent: var(--paper)">
+      <span class="num">Variation 06</span>
+      <h2>One-Page Formulation</h2>
+      <p class="tagline">The deliverable is a document.</p>
+      <p class="question">Is the real product a beautiful, printable one-pager for families and teams?</p>
+      <div class="kc">
+        <div class="row keeps"><span class="lbl">Keeps</span><span class="val">person-first structured capture, live paper preview, print to PDF, Markdown export</span></div>
+        <div class="row cuts"><span class="lbl">Cuts</span><span class="val">map, links, hierarchy, multiple cases</span></div>
+      </div>
+      <span class="open">Open &rarr;</span>
+    </a>
+
+    <a class="card" href="./botanical.html" style="--accent: var(--mint)">
+      <span class="num">Variation 07</span>
+      <h2>Pocket Botanical</h2>
+      <p class="tagline">The metaphor, pocket-sized.</p>
+      <p class="question">Does the botanical layout — roots, trunk, branches, canopy — survive radical simplification?</p>
+      <div class="kc">
+        <div class="row keeps"><span class="lbl">Keeps</span><span class="val">vertical zone geography, QoL canopy on top, behaviour beside (never centre), SVG stems</span></div>
+        <div class="row cuts"><span class="lbl">Cuts</span><span class="val">pan/zoom, drag, relationships, in-zone hierarchy</span></div>
+      </div>
+      <span class="open">Open &rarr;</span>
+    </a>
+
+  </div>
+
+  <footer>
+    <span>A thinking tool — not a BSP generator. No accounts, no network calls; everything stays in this browser.</span>
+    <span>The full app lives in <code>mebs-map-studio/</code> (<code>npm run dev</code>). Each variation here keeps one core idea so they can be compared honestly.</span>
+  </footer>
+</div>
+</body>
+</html>

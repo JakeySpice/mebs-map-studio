@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claims &amp; Links — MEBS minimal lab</title>
+<style>
+  :root{
+    --bg:#131318;
+    --surface:#1d1d26;
+    --surface2:#16161d;
+    --border:rgba(255,255,255,.08);
+    --text:#e9e9f2;
+    --muted:#9a9ab0;
+    --lav:#c4b5fd;
+    --blue:#93c5fd;
+    --mint:#86efac;
+    --rose:#fda4af;
+    --amber:#fcd34d;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:14.5px;
+    line-height:1.45;
+  }
+  /* ---------- header ---------- */
+  header{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px 18px;
+    padding:10px 20px;
+    background:var(--surface);
+    border-bottom:1px solid var(--border);
+  }
+  .h-left{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  .h-right{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  header h1{font-size:17px;margin:0;font-weight:650;color:var(--lav)}
+  .tag{color:var(--muted);font-size:13px}
+  .back{color:var(--muted);text-decoration:none;font-size:13px}
+  .back:hover{color:var(--text)}
+  .notice{color:var(--muted);font-size:12.5px}
+  .subtitle{
+    margin:0;
+    padding:7px 20px;
+    color:var(--muted);
+    font-size:12.5px;
+    border-bottom:1px solid var(--border);
+  }
+  /* ---------- layout ---------- */
+  main{
+    display:grid;
+    grid-template-columns:320px 1fr;
+    gap:18px;
+    padding:18px 20px 40px;
+    align-items:start;
+    max-width:1320px;
+    margin:0 auto;
+  }
+  @media (max-width:880px){ main{grid-template-columns:1fr} }
+  .pane{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:16px 16px 18px;
+  }
+  .pane h2{margin:0 0 12px;font-size:15px;font-weight:650}
+  .pane-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .pane-head h2{margin:0}
+  /* ---------- controls ---------- */
+  .btn{
+    background:rgba(255,255,255,.06);
+    border:1px solid var(--border);
+    border-radius:10px;
+    color:var(--text);
+    font:inherit;
+    font-size:13px;
+    padding:6px 12px;
+    cursor:pointer;
+  }
+  .btn:hover{background:rgba(255,255,255,.1)}
+  select,input[type=text]{
+    background:var(--surface2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    color:var(--text);
+    font:inherit;
+    font-size:13px;
+    padding:6px 9px;
+    max-width:100%;
+  }
+  select:focus,input[type=text]:focus{outline:1px solid var(--lav)}
+  /* ---------- factors pane ---------- */
+  .addrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .addrow input[type=text]{flex:1;min-width:120px}
+  .kgroup{margin-bottom:12px}
+  .khead{
+    display:flex;align-items:center;gap:7px;
+    font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);margin:0 0 5px 2px;
+  }
+  .dot{width:8px;height:8px;border-radius:50%;flex:none}
+  .frow{
+    display:flex;align-items:center;gap:8px;
+    padding:5px 8px;border-radius:10px;
+  }
+  .frow:hover{background:rgba(255,255,255,.04)}
+  .fname{flex:1;cursor:text;word-break:break-word}
+  .fname:hover{text-decoration:underline;text-decoration-color:rgba(255,255,255,.25)}
+  .rinput{flex:1;min-width:0}
+  .xbtn{
+    background:none;border:none;color:var(--muted);
+    font-size:15px;line-height:1;cursor:pointer;padding:2px 6px;border-radius:8px;flex:none;
+  }
+  .xbtn:hover{color:var(--rose);background:rgba(253,164,175,.1)}
+  .empty{color:var(--muted);font-size:13px;padding:10px 4px}
+  /* ---------- claims builder ---------- */
+  .builder{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
+  .builder select{max-width:230px}
+  .bmsg{color:var(--amber);font-size:12.5px;min-height:18px;display:block;margin-bottom:8px}
+  /* ---------- arc diagram ---------- */
+  .arcbox{
+    background:var(--surface2);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:8px 8px 4px;
+    margin-bottom:12px;
+  }
+  .arcbox svg{display:block;width:100%;height:auto}
+  .arc{fill:none;stroke-width:1.6;opacity:.5;transition:opacity .12s,stroke-width .12s}
+  .arc.t-risk{stroke:var(--rose)}
+  .arc.t-protective{stroke:var(--mint)}
+  .arc.t-data{stroke:var(--amber);stroke-dasharray:5 4}
+  .arc.hl{opacity:1;stroke-width:3}
+  .archit{fill:none;stroke:#fff;stroke-opacity:0;stroke-width:12;pointer-events:stroke;cursor:pointer}
+  .albl{font-size:10.5px;fill:var(--muted)}
+  .baseline{stroke:rgba(255,255,255,.12)}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;padding:2px 8px 8px;color:var(--muted);font-size:12px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:18px;height:0;border-top:2px solid;flex:none}
+  .sw.risk{border-color:var(--rose)}
+  .sw.prot{border-color:var(--mint)}
+  .sw.data{border-color:var(--amber);border-top-style:dashed}
+  /* ---------- filter chips ---------- */
+  .chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+  .chip{
+    background:none;border:1px solid var(--border);border-radius:999px;
+    color:var(--muted);font:inherit;font-size:12px;padding:4px 11px;cursor:pointer;
+  }
+  .chip.on.t-risk{color:var(--rose);border-color:rgba(253,164,175,.5);background:rgba(253,164,175,.08)}
+  .chip.on.t-protective{color:var(--mint);border-color:rgba(134,239,172,.5);background:rgba(134,239,172,.08)}
+  .chip.on.t-data{color:var(--amber);border-color:rgba(252,211,77,.5);background:rgba(252,211,77,.08)}
+  /* ---------- claims list ---------- */
+  .claims{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+  .claim{
+    display:flex;align-items:center;gap:8px;
+    background:rgba(255,255,255,.03);
+    border:1px solid var(--border);
+    border-left:3px solid var(--muted);
+    border-radius:10px;
+    padding:8px 10px;
+  }
+  .claim.t-risk{border-left-color:var(--rose)}
+  .claim.t-protective{border-left-color:var(--mint)}
+  .claim.t-data{border-left-color:var(--amber)}
+  .claim.hl{background:rgba(255,255,255,.07)}
+  .claim .sent{flex:1}
+  .claim strong{font-weight:650}
+  .claim.t-risk strong{color:var(--rose)}
+  .claim.t-protective strong{color:var(--mint)}
+  .claim.t-data strong{color:var(--amber)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="h-left">
+    <a class="back" href="./index.html">&larr; All variations</a>
+    <h1>Claims &amp; Links</h1>
+    <span class="tag">The formulation is the set of claims</span>
+  </div>
+  <div class="h-right">
+    <span class="notice">A thinking tool — not a BSP generator. Data stays in this browser.</span>
+    <button id="resetBtn" class="btn">Reset sample</button>
+  </div>
+</header>
+<p class="subtitle">Seeded with a fictional, de-identified sample case — &ldquo;Alex&rdquo; (pseudonym).</p>
+
+<main>
+  <!-- ---------- left: factors ---------- -->
+  <section class="pane" id="factorsPane">
+    <h2>Factors</h2>
+    <form class="addrow" id="addFactorForm">
+      <select id="newKind" aria-label="Factor kind"></select>
+      <input type="text" id="newName" placeholder="Factor name&hellip;" maxlength="120" aria-label="Factor name">
+      <button type="submit" class="btn">Add</button>
+    </form>
+    <div id="factorList"></div>
+  </section>
+
+  <!-- ---------- right: claims ---------- -->
+  <section class="pane" id="claimsPane">
+    <div class="pane-head">
+      <h2>Claims</h2>
+      <div>
+        <button id="exportMdBtn" class="btn">Export Markdown</button>
+        <button id="exportJsonBtn" class="btn">Export JSON</button>
+      </div>
+    </div>
+
+    <form class="builder" id="claimForm">
+      <select id="fromSel" aria-label="From factor"></select>
+      <select id="relSel" aria-label="Relation"></select>
+      <select id="toSel" aria-label="To factor"></select>
+      <button type="submit" class="btn">Add</button>
+    </form>
+    <span class="bmsg" id="builderMsg"></span>
+
+    <div class="arcbox">
+      <div id="arcWrap"></div>
+      <div class="legend">
+        <span><i class="sw risk"></i>risk (above)</span>
+        <span><i class="sw prot"></i>protective / support (below)</span>
+        <span><i class="sw data"></i>needs data (dashed)</span>
+      </div>
+    </div>
+
+    <div class="chips" id="chips"></div>
+    <ul class="claims" id="claimList"></ul>
+  </section>
+</main>
+
+<script>
+'use strict';
+
+/* ================= constants ================= */
+
+const KEY = 'mebs-min-claims';
+
+const KINDS = [
+  { id:'strength',  label:'Strength',             plural:'Strengths',              colour:'var(--mint)'  },
+  { id:'goal',      label:'Quality-of-life goal', plural:'Quality-of-life goals',  colour:'var(--mint)'  },
+  { id:'context',   label:'Context factor',       plural:'Context factors',        colour:'var(--blue)'  },
+  { id:'setting',   label:'Setting event',        plural:'Setting events',         colour:'var(--blue)'  },
+  { id:'behaviour', label:'Behaviour pattern',    plural:'Behaviour patterns',     colour:'var(--rose)'  },
+  { id:'support',   label:'Support strategy',     plural:'Support strategies',     colour:'var(--mint)'  },
+  { id:'skill',     label:'Skill',                plural:'Skills',                 colour:'var(--mint)'  },
+  { id:'data',      label:'Data / open question', plural:'Data / open questions',  colour:'var(--amber)' }
+];
+
+const RELS = [
+  { id:'increases',   label:'increases risk of', tone:'risk'       },
+  { id:'reduces',     label:'reduces risk of',   tone:'protective' },
+  { id:'maintains',   label:'may maintain',      tone:'risk'       },
+  { id:'replacement', label:'is replacement for',tone:'protective' },
+  { id:'supports',    label:'supports',          tone:'protective' },
+  { id:'needsdata',   label:'needs data about',  tone:'data'       }
+];
+
+const SEED = {
+  factors: [
+    { id:'f1',  kind:'strength',  name:'Funny and social' },
+    { id:'f2',  kind:'strength',  name:'Loves helping younger kids' },
+    { id:'f3',  kind:'goal',      name:'More say in daily routine' },
+    { id:'f4',  kind:'goal',      name:'Helping at lunch club' },
+    { id:'f5',  kind:'setting',   name:'Poor sleep before school days' },
+    { id:'f6',  kind:'context',   name:'Unpredictable transitions' },
+    { id:'f7',  kind:'context',   name:'Writing tasks' },
+    { id:'f8',  kind:'context',   name:'Adults talking over him' },
+    { id:'f9',  kind:'behaviour', name:'Hitting out and shouting at transitions' },
+    { id:'f10', kind:'support',   name:'Visual schedule with advance warning' },
+    { id:'f11', kind:'support',   name:'Choices at transition points' },
+    { id:'f12', kind:'support',   name:'Chunked writing demands' },
+    { id:'f13', kind:'skill',     name:'Asking for a break' },
+    { id:'f14', kind:'data',      name:'Sleep diary' },
+    { id:'f15', kind:'data',      name:'ABC chart on transitions' },
+    { id:'f16', kind:'data',      name:'Pain/health review' }
+  ],
+  claims: [
+    { id:'c1',  from:'f5',  rel:'increases',   to:'f9'  },
+    { id:'c2',  from:'f6',  rel:'increases',   to:'f9'  },
+    { id:'c3',  from:'f8',  rel:'increases',   to:'f9'  },
+    { id:'c4',  from:'f7',  rel:'maintains',   to:'f9'  },
+    { id:'c5',  from:'f10', rel:'reduces',     to:'f9'  },
+    { id:'c6',  from:'f11', rel:'reduces',     to:'f9'  },
+    { id:'c7',  from:'f13', rel:'replacement', to:'f9'  },
+    { id:'c8',  from:'f12', rel:'supports',    to:'f13' },
+    { id:'c9',  from:'f14', rel:'needsdata',   to:'f5'  },
+    { id:'c10', from:'f16', rel:'needsdata',   to:'f5'  },
+    { id:'c11', from:'f4',  rel:'supports',    to:'f3'  }
+  ]
+};
+
+/* ================= state ================= */
+
+let state = load();
+let activeRels = new Set(RELS.map(r => r.id));
+
+function load(){
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw){
+      const data = JSON.parse(raw);
+      if (data && Array.isArray(data.factors) && Array.isArray(data.claims)){
+        return data;
+      }
+    }
+  } catch (e) { /* fall through to seed */ }
+  return seedCopy();
+}
+
+function seedCopy(){ return JSON.parse(JSON.stringify(SEED)); }
+
+function save(){
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* storage unavailable */ }
+}
+
+function uid(prefix){
+  return prefix + Math.random().toString(36).slice(2, 9);
+}
+
+/* ================= helpers ================= */
+
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => (
+    { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+  ));
+}
+
+function trunc(s, n){ return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+
+function kindOf(id){ return KINDS.find(k => k.id === id) || KINDS[0]; }
+function relOf(id){ return RELS.find(r => r.id === id); }
+function factorOf(id){ return state.factors.find(f => f.id === id); }
+
+function sortedFactors(){
+  const out = [];
+  for (const k of KINDS){
+    for (const f of state.factors){
+      if (f.kind === k.id) out.push(f);
+    }
+  }
+  return out;
+}
+
+function visibleClaims(){
+  return state.claims.filter(c =>
+    activeRels.has(c.rel) && factorOf(c.from) && factorOf(c.to)
+  );
+}
+
+function sentenceText(c){
+  const rel = relOf(c.rel);
+  return factorOf(c.from).name + ' ' + rel.label + ' ' + factorOf(c.to).name;
+}
+
+/* ================= rendering ================= */
+
+function renderAll(){
+  renderFactors();
+  renderBuilder();
+  renderChips();
+  renderArcs();
+  renderClaims();
+}
+
+/* ----- factors (left pane) ----- */
+
+function renderFactors(){
+  const box = document.getElementById('factorList');
+  if (state.factors.length === 0){
+    box.innerHTML = '<div class="empty">No factors yet. Add the first one above.</div>';
+    return;
+  }
+  let html = '';
+  for (const k of KINDS){
+    const fs = state.factors.filter(f => f.kind === k.id);
+    if (fs.length === 0) continue;
+    html += '<div class="kgroup">';
+    html += '<div class="khead"><span class="dot" style="background:' + k.colour + '"></span>' +
+            esc(k.plural) + ' &middot; ' + fs.length + '</div>';
+    for (const f of fs){
+      html += '<div class="frow">' +
+        '<span class="dot" style="background:' + k.colour + '"></span>' +
+        '<span class="fname" data-id="' + f.id + '" title="Click to rename">' + esc(f.name) + '</span>' +
+        '<button class="xbtn fdel" data-id="' + f.id + '" title="Delete factor">&times;</button>' +
+        '</div>';
+    }
+    html += '</div>';
+  }
+  box.innerHTML = html;
+}
+
+function startRename(span){
+  const f = factorOf(span.dataset.id);
+  if (!f) return;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'rinput';
+  input.maxLength = 120;
+  input.value = f.name;
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+  let done = false;
+  function commit(cancel){
+    if (done) return;
+    done = true;
+    const val = input.value.trim();
+    if (!cancel && val && val !== f.name){
+      f.name = val;
+      save();
+    }
+    renderAll();
+  }
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') commit(false);
+    else if (e.key === 'Escape') commit(true);
+  });
+  input.addEventListener('blur', () => commit(false));
+}
+
+function deleteFactor(id){
+  const f = factorOf(id);
+  if (!f) return;
+  const linked = state.claims.filter(c => c.from === id || c.to === id);
+  const extra = linked.length
+    ? ' This also removes ' + linked.length + ' claim' + (linked.length === 1 ? '' : 's') + ' that mention it.'
+    : '';
+  if (!confirm('Delete "' + f.name + '"?' + extra)) return;
+  state.factors = state.factors.filter(x => x.id !== id);
+  state.claims = state.claims.filter(c => c.from !== id && c.to !== id);
+  save();
+  renderAll();
+}
+
+/* ----- builder ----- */
+
+function renderBuilder(){
+  const kindSel = document.getElementById('newKind');
+  if (!kindSel.options.length){
+    kindSel.innerHTML = KINDS.map(k =>
+      '<option value="' + k.id + '">' + esc(k.label) + '</option>').join('');
+  }
+  const relSel = document.getElementById('relSel');
+  if (!relSel.options.length){
+    relSel.innerHTML = RELS.map(r =>
+      '<option value="' + r.id + '">' + esc(r.label) + '</option>').join('');
+  }
+  for (const selId of ['fromSel', 'toSel']){
+    const sel = document.getElementById(selId);
+    const prev = sel.value;
+    if (state.factors.length === 0){
+      sel.innerHTML = '<option value="">&mdash; add factors first &mdash;</option>';
+      continue;
+    }
+    let html = '';
+    for (const k of KINDS){
+      const fs = state.factors.filter(f => f.kind === k.id);
+      if (fs.length === 0) continue;
+      html += '<optgroup label="' + esc(k.plural) + '">';
+      for (const f of fs){
+        html += '<option value="' + f.id + '">' + esc(f.name) + '</option>';
+      }
+      html += '</optgroup>';
+    }
+    sel.innerHTML = html;
+    if (prev && factorOf(prev)) sel.value = prev;
+  }
+}
+
+function builderMsg(text){
+  const el = document.getElementById('builderMsg');
+  el.textContent = text;
+  if (text){
+    clearTimeout(builderMsg.t);
+    builderMsg.t = setTimeout(() => { el.textContent = ''; }, 3500);
+  }
+}
+
+function addClaim(){
+  const from = document.getElementById('fromSel').value;
+  const rel = document.getElementById('relSel').value;
+  const to = document.getElementById('toSel').value;
+  if (!from || !to){
+    builderMsg('Add at least two factors first.');
+    return;
+  }
+  if (from === to){
+    builderMsg('A factor cannot link to itself.');
+    return;
+  }
+  if (state.claims.some(c => c.from === from && c.rel === rel && c.to === to)){
+    builderMsg('That claim is already recorded.');
+    return;
+  }
+  state.claims.push({ id: uid('c'), from: from, rel: rel, to: to });
+  save();
+  renderAll();
+  builderMsg('');
+}
+
+/* ----- filter chips ----- */
+
+function renderChips(){
+  const box = document.getElementById('chips');
+  box.innerHTML = RELS.map(r => {
+    const n = state.claims.filter(c => c.rel === r.id).length;
+    const on = activeRels.has(r.id);
+    return '<button type="button" class="chip t-' + r.tone + (on ? ' on' : '') + '" data-rel="' + r.id + '">' +
+           esc(r.label) + ' &middot; ' + n + '</button>';
+  }).join('');
+}
+
+/* ----- arc diagram ----- */
+
+function renderArcs(){
+  const wrap = document.getElementById('arcWrap');
+  const fs = sortedFactors();
+  if (fs.length === 0){
+    wrap.innerHTML = '<div class="empty">Add factors to see the arc diagram.</div>';
+    return;
+  }
+  const W = 900, H = 310, lineY = 180, margin = 40;
+  const step = fs.length > 1 ? (W - margin * 2) / (fs.length - 1) : 0;
+  const pos = {};
+  fs.forEach((f, i) => {
+    pos[f.id] = fs.length > 1 ? margin + i * step : W / 2;
+  });
+
+  let arcs = '';
+  const stack = {}; // offsets so identical-endpoint arcs do not coincide
+  for (const c of visibleClaims()){
+    const rel = relOf(c.rel);
+    const x1 = pos[c.from], x2 = pos[c.to];
+    const above = rel.tone !== 'protective'; // risk + data above, protective below
+    const key = Math.min(x1, x2) + '|' + Math.max(x1, x2) + '|' + (above ? 'a' : 'b');
+    stack[key] = (stack[key] || 0) + 1;
+    const span = Math.abs(x2 - x1);
+    let h = Math.max(24, Math.min(above ? 150 : 105, span * 0.32)) + (stack[key] - 1) * 13;
+    const peak = above ? lineY - h : lineY + h;
+    const d = 'M ' + x1 + ' ' + lineY + ' Q ' + ((x1 + x2) / 2) + ' ' + peak + ' ' + x2 + ' ' + lineY;
+    arcs += '<path class="arc t-' + rel.tone + '" id="arc-' + c.id + '" d="' + d + '"></path>';
+    arcs += '<path class="archit" data-claim="' + c.id + '" d="' + d + '">' +
+            '<title>' + esc(sentenceText(c)) + '</title></path>';
+  }
+
+  let dots = '';
+  for (const f of fs){
+    const x = pos[f.id];
+    const k = kindOf(f.kind);
+    dots += '<circle cx="' + x + '" cy="' + lineY + '" r="5" fill="' + k.colour + '">' +
+            '<title>' + esc(f.name + ' (' + k.label + ')') + '</title></circle>';
+    const lx = x + 4, ly = lineY + 16;
+    dots += '<text class="albl" x="' + lx + '" y="' + ly + '" transform="rotate(38 ' + lx + ' ' + ly + ')">' +
+            esc(trunc(f.name, 24)) + '</text>';
+  }
+
+  wrap.innerHTML =
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img" ' +
+    'aria-label="Arc diagram of claims between factors">' +
+    '<line class="baseline" x1="' + (margin - 14) + '" y1="' + lineY + '" x2="' + (W - margin + 14) + '" y2="' + lineY + '"></line>' +
+    arcs + dots +
+    '</svg>';
+}
+
+/* ----- claims list ----- */
+
+function renderClaims(){
+  const list = document.getElementById('claimList');
+  const cs = visibleClaims();
+  if (cs.length === 0){
+    const any = state.claims.length > 0;
+    list.innerHTML = '<li class="empty">' +
+      (any ? 'No claims match the current filters.' :
+             'No claims yet. Connect two factors above &mdash; cautiously, one claim at a time.') +
+      '</li>';
+    return;
+  }
+  list.innerHTML = cs.map(c => {
+    const rel = relOf(c.rel);
+    return '<li class="claim t-' + rel.tone + '" id="claim-' + c.id + '" data-claim="' + c.id + '">' +
+      '<span class="sent">' + esc(factorOf(c.from).name) +
+      ' <strong>' + esc(rel.label) + '</strong> ' +
+      esc(factorOf(c.to).name) + '</span>' +
+      '<button class="xbtn cdel" data-id="' + c.id + '" title="Delete claim">&times;</button>' +
+      '</li>';
+  }).join('');
+}
+
+/* ----- hover highlight (arc <-> sentence) ----- */
+
+function setHighlight(claimId, on){
+  const arc = document.getElementById('arc-' + claimId);
+  const li = document.getElementById('claim-' + claimId);
+  if (arc) arc.classList.toggle('hl', on);
+  if (li) li.classList.toggle('hl', on);
+}
+
+/* ================= exports ================= */
+
+function download(filename, text, mime){
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 500);
+}
+
+function dateStamp(){
+  const d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
+function exportMarkdown(){
+  const lines = [];
+  lines.push('# Formulation logic');
+  lines.push('');
+  lines.push('> A thinking tool — not a behaviour support plan. Claims are working hypotheses to test with the person and their team.');
+  lines.push('');
+  lines.push('_Exported ' + new Date().toLocaleDateString('en-AU', { day:'numeric', month:'long', year:'numeric' }) + ' from Claims & Links (MEBS minimal lab)._');
+  lines.push('');
+  lines.push('## Factors');
+  for (const k of KINDS){
+    const fs = state.factors.filter(f => f.kind === k.id);
+    if (fs.length === 0) continue;
+    lines.push('');
+    lines.push('### ' + k.plural);
+    for (const f of fs) lines.push('- ' + f.name);
+  }
+  lines.push('');
+  lines.push('## Claims');
+  let anyClaim = false;
+  for (const r of RELS){
+    const cs = state.claims.filter(c => c.rel === r.id && factorOf(c.from) && factorOf(c.to));
+    if (cs.length === 0) continue;
+    anyClaim = true;
+    lines.push('');
+    lines.push('### ' + r.label.charAt(0).toUpperCase() + r.label.slice(1));
+    for (const c of cs){
+      lines.push('- ' + factorOf(c.from).name + ' **' + r.label + '** ' + factorOf(c.to).name);
+    }
+  }
+  if (!anyClaim){
+    lines.push('');
+    lines.push('_No claims recorded yet._');
+  }
+  lines.push('');
+  download('formulation-logic-' + dateStamp() + '.md', lines.join('\n'), 'text/markdown');
+}
+
+function exportJSON(){
+  const payload = {
+    app: 'mebs-min-claims',
+    exported: new Date().toISOString(),
+    factors: state.factors,
+    claims: state.claims
+  };
+  download('claims-and-links-' + dateStamp() + '.json', JSON.stringify(payload, null, 2), 'application/json');
+}
+
+/* ================= events ================= */
+
+document.getElementById('addFactorForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const nameEl = document.getElementById('newName');
+  const name = nameEl.value.trim();
+  if (!name) return;
+  state.factors.push({ id: uid('f'), kind: document.getElementById('newKind').value, name: name });
+  save();
+  renderAll();
+  nameEl.value = '';
+  nameEl.focus();
+});
+
+document.getElementById('factorList').addEventListener('click', e => {
+  const del = e.target.closest('.fdel');
+  if (del){ deleteFactor(del.dataset.id); return; }
+  const nm = e.target.closest('.fname');
+  if (nm) startRename(nm);
+});
+
+document.getElementById('claimForm').addEventListener('submit', e => {
+  e.preventDefault();
+  addClaim();
+});
+
+document.getElementById('chips').addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  const rel = chip.dataset.rel;
+  if (activeRels.has(rel)) activeRels.delete(rel);
+  else activeRels.add(rel);
+  renderChips();
+  renderArcs();
+  renderClaims();
+});
+
+document.getElementById('claimList').addEventListener('click', e => {
+  const del = e.target.closest('.cdel');
+  if (!del) return;
+  state.claims = state.claims.filter(c => c.id !== del.dataset.id);
+  save();
+  renderAll();
+});
+
+// hover: sentence -> arc
+document.getElementById('claimList').addEventListener('mouseover', e => {
+  const li = e.target.closest('.claim');
+  if (li && li.dataset.claim) setHighlight(li.dataset.claim, true);
+});
+document.getElementById('claimList').addEventListener('mouseout', e => {
+  const li = e.target.closest('.claim');
+  if (li && li.dataset.claim) setHighlight(li.dataset.claim, false);
+});
+
+// hover: arc -> sentence
+document.getElementById('arcWrap').addEventListener('mouseover', e => {
+  const hit = e.target.closest('.archit');
+  if (hit) setHighlight(hit.dataset.claim, true);
+});
+document.getElementById('arcWrap').addEventListener('mouseout', e => {
+  const hit = e.target.closest('.archit');
+  if (hit) setHighlight(hit.dataset.claim, false);
+});
+
+document.getElementById('exportMdBtn').addEventListener('click', exportMarkdown);
+document.getElementById('exportJsonBtn').addEventListener('click', exportJSON);
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (!confirm('Replace everything with the sample case ("Alex", fictional)? Your current factors and claims will be lost.')) return;
+  state = seedCopy();
+  activeRels = new Set(RELS.map(r => r.id));
+  save();
+  renderAll();
+});
+
+/* ================= boot ================= */
+
+save();      // persist seed on first load
+renderAll();
+</script>
+</body>
+</html>
