@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { getViewportForBounds, useReactFlow } from "@xyflow/react";
+import { getViewportForBounds, useReactFlow, useStoreApi } from "@xyflow/react";
 import { toPng } from "html-to-image";
 import {
   Download,
@@ -87,13 +87,22 @@ function ToolbarContent({ map }: { map: MebsMap }) {
   const selectedNodeId = useMapStore((s) => s.selectedNodeId);
   const selectedEdgeId = useMapStore((s) => s.selectedEdgeId);
   const { fitView, getNodes, getNodesBounds } = useReactFlow();
+  const rfStore = useStoreApi();
 
   const layoutMode = layoutModeOf(map);
   // inspector aside occupies the right edge while a node/edge is selected — fit
   // must clear it (shared helper, same insets as MapCanvas)
   const inspectorOpen = selectedNodeId !== null || selectedEdgeId !== null;
-  const fitOpts = (extra: { duration: number }) =>
-    fitChromeOptions({ inspectorOpen, mode: layoutMode, extra });
+  const fitOpts = (extra: { duration: number }) => {
+    const { width, height } = rfStore.getState();
+    return fitChromeOptions({
+      inspectorOpen,
+      mode: layoutMode,
+      paneWidth: width,
+      paneHeight: height,
+      extra,
+    });
+  };
   const [titleDraft, setTitleDraft] = React.useState(map.title);
 
   const commitTitle = () => {

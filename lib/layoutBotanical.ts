@@ -873,11 +873,36 @@ const CHROME_TOP_PX = 76;
 const CHROME_RIGHT_PX = 360;
 /** comfortable base inset on the unobstructed sides */
 const CHROME_BASE_PX = 32;
+/** fitted content always keeps at least this fraction of the pane per axis */
+const MIN_CONTENT_FRACTION = 0.5;
+
+/**
+ * The fixed chrome insets can swallow a narrow pane (534px wide with the
+ * inspector open leaves 142px of content → fit zoom ~0.2). Scale a side pair
+ * down so their sum never exceeds half the pane; with an unknown pane size
+ * (0 / undefined, e.g. before first measure) the insets pass through as-is.
+ */
+function clampChromeAxis(
+  a: number,
+  b: number,
+  pane: number | undefined
+): [number, number] {
+  if (!pane || pane <= 0) return [a, b];
+  const maxTotal = pane * (1 - MIN_CONTENT_FRACTION);
+  const total = a + b;
+  if (total <= maxTotal) return [a, b];
+  const k = maxTotal / total;
+  return [Math.floor(a * k), Math.floor(b * k)];
+}
 
 export interface FitChromeOpts {
   /** inspector aside is mounted (a node or edge is selected) */
   inspectorOpen: boolean;
   mode: LayoutModeArg;
+  /** measured pane size — when provided, the chrome paddings are clamped so
+   *  the fitted content keeps at least half the pane on each axis */
+  paneWidth?: number;
+  paneHeight?: number;
   /** merged into the result (duration, nodes, maxZoom overrides, …) */
   extra?: FitViewOptions;
 }
@@ -893,13 +918,25 @@ type LayoutModeArg = "botanical" | "outline";
 export function fitChromeOptions({
   inspectorOpen,
   mode,
+  paneWidth,
+  paneHeight,
   extra,
 }: FitChromeOpts): FitViewOptions {
+  const [left, right] = clampChromeAxis(
+    CHROME_BASE_PX,
+    inspectorOpen ? CHROME_RIGHT_PX : CHROME_BASE_PX,
+    paneWidth
+  );
+  const [top, bottom] = clampChromeAxis(
+    CHROME_TOP_PX,
+    CHROME_BASE_PX,
+    paneHeight
+  );
   const padding = {
-    top: `${CHROME_TOP_PX}px`,
-    bottom: `${CHROME_BASE_PX}px`,
-    left: `${CHROME_BASE_PX}px`,
-    right: `${inspectorOpen ? CHROME_RIGHT_PX : CHROME_BASE_PX}px`,
+    top: `${top}px`,
+    bottom: `${bottom}px`,
+    left: `${left}px`,
+    right: `${right}px`,
   } as const;
   const base: FitViewOptions =
     mode === "botanical"
@@ -930,8 +967,11 @@ export function outlineViewport(
     if (it.y < minY) minY = it.y;
     if (it.x + it.width > maxX) maxX = it.x + it.width;
   }
-  const left = CHROME_BASE_PX;
-  const right = inspectorOpen ? CHROME_RIGHT_PX : CHROME_BASE_PX;
+  const [left, right] = clampChromeAxis(
+    CHROME_BASE_PX,
+    inspectorOpen ? CHROME_RIGHT_PX : CHROME_BASE_PX,
+    paneWidth
+  );
   const availW = Math.max(1, paneWidth - left - right);
   const colW = Math.max(1, maxX - minX);
   const zoom = Math.min(0.95, availW / colW);

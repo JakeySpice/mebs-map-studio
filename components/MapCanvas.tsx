@@ -103,6 +103,8 @@ export function MapCanvas() {
         fitChromeOptions({
           inspectorOpen: inspectorOpenRef.current,
           mode: layoutModeRef.current,
+          paneWidth: rfStore.getState().width,
+          paneHeight: rfStore.getState().height,
           // pan only (keep current zoom) so a freshly revealed node just
           // scrolls into the unobstructed area rather than zooming
           extra: {
@@ -114,7 +116,7 @@ export function MapCanvas() {
       );
     }, 40);
     return () => clearTimeout(timer);
-  }, [focusRequest, fitView, getZoom]);
+  }, [focusRequest, fitView, getZoom, rfStore]);
 
   // keyed on the nodes array + mode: edge-only commits reuse the nodes
   // reference (see store commit), so edge edits skip the relayout entirely
@@ -133,14 +135,15 @@ export function MapCanvas() {
   }, [inspectorOpen, layoutMode, layout]);
 
   // refit when the layout mode flips — the geometry changes completely.
-  // Botanical's initial fit comes from the fitView prop. Outline never
-  // fit-alls (a tall column collapses to a sliver): it frames via
-  // outlineViewport instead, both on first render and on switching to it.
+  // Outline never fit-alls (a tall column collapses to a sliver): it frames
+  // via outlineViewport instead, both on first render and on switching to it.
+  // The first botanical run re-issues the fitView-prop fit: by effect time the
+  // pane is measured, so fitChromeOptions can clamp its paddings on narrow
+  // panes (the prop's options can't — they're built before the first measure).
   const firstModeRun = React.useRef(true);
   React.useEffect(() => {
     const first = firstModeRun.current;
     firstModeRun.current = false;
-    if (first && layoutMode === "botanical") return;
     const frame = requestAnimationFrame(() => {
       const duration = first ? 0 : 400;
       if (layoutMode === "outline") {
@@ -160,6 +163,8 @@ export function MapCanvas() {
         fitChromeOptions({
           inspectorOpen: inspectorOpenRef.current,
           mode: layoutMode,
+          paneWidth: rfStore.getState().width,
+          paneHeight: rfStore.getState().height,
           extra: { duration },
         })
       );
@@ -547,6 +552,8 @@ export function MapCanvas() {
       onPaneClick={() => clearSelection()}
       onConnect={onConnect}
       fitView={botanical}
+      // no pane size at render time, so no clamping here — the layout-mode
+      // effect above re-fits once with clamped paddings right after mount
       fitViewOptions={fitChromeOptions({ inspectorOpen, mode: layoutMode })}
       minZoom={botanical ? 0.08 : 0.15}
       maxZoom={1.8}
