@@ -11,10 +11,9 @@ import {
 } from "@/types/graph";
 import { useMapStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { DraftInput, DraftTextarea } from "@/components/DraftFields";
 import {
   Select,
   SelectContent,
@@ -123,10 +122,16 @@ export function EdgeInspector({ edgeId }: { edgeId: string }) {
           <Label className="text-[11px] tracking-wide text-zinc-400 uppercase">
             Custom label (optional)
           </Label>
-          <Input
+          <DraftInput
             value={edge.label ?? ""}
             placeholder={EDGE_TYPE_LABELS[edge.type]}
-            onChange={(e) => updateEdge(edge.id, { label: e.target.value })}
+            onCommit={(draft) => {
+              const label = draft.trim();
+              if (label !== (edge.label ?? "")) {
+                updateEdge(edge.id, { label: label || undefined });
+              }
+              return label;
+            }}
             className="border-white/10 bg-zinc-900/60 text-[13px]"
           />
         </div>
@@ -135,11 +140,16 @@ export function EdgeInspector({ edgeId }: { edgeId: string }) {
           <Label className="text-[11px] tracking-wide text-zinc-400 uppercase">
             Notes
           </Label>
-          <Textarea
+          <DraftTextarea
             value={edge.notes ?? ""}
             rows={4}
             placeholder="Why might these be linked? What would test this?"
-            onChange={(e) => updateEdge(edge.id, { notes: e.target.value })}
+            onCommit={(draft) => {
+              if (draft !== (edge.notes ?? "")) {
+                updateEdge(edge.id, { notes: draft || undefined });
+              }
+              return draft;
+            }}
             className="border-white/10 bg-zinc-900/60 text-[13px]"
           />
         </div>

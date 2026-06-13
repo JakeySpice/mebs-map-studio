@@ -584,7 +584,8 @@ export function MapCanvas() {
       />
       {linkVisibility !== "off" && semanticPlan.hiddenCount > 0 && (
         <div
-          className="pointer-events-none absolute bottom-4 left-1/2 z-50 -translate-x-1/2"
+          // bottom-16 clears the keyboard-hint pill, which owns bottom-4
+          className="pointer-events-none absolute bottom-16 left-1/2 z-50 -translate-x-1/2"
           style={{ marginRight: inspectorOpen ? 360 : 0 }}
         >
           <div className="rounded-full border border-amber-300/25 bg-zinc-950/85 px-3 py-1.5 text-[11.5px] font-medium text-amber-200/90 shadow-[0_8px_30px_rgba(0,0,0,0.5)] backdrop-blur-md">

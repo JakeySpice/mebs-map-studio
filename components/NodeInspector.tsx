@@ -3,7 +3,9 @@
 import * as React from "react";
 import {
   ArrowRight,
+  Copy,
   CornerDownRight,
+  FolderInput,
   Link2,
   Plus,
   Trash2,
@@ -22,10 +24,12 @@ import {
 } from "@/types/graph";
 import { useMapStore } from "@/lib/store";
 import { templateById, templateByLabel } from "@/lib/templates";
+import { suggestEdgeType } from "@/lib/edgeSuggest";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { DraftTextarea } from "@/components/DraftFields";
+import { NodePicker, type NodePickerCandidate } from "@/components/NodePicker";
 import {
   Select,
   SelectContent,
@@ -104,6 +108,9 @@ function NodeInspectorContent({ nodeId }: { nodeId: string }) {
   const updateNode = useMapStore((s) => s.updateNode);
   const deleteNode = useMapStore((s) => s.deleteNode);
   const addChild = useMapStore((s) => s.addChild);
+  const addChildren = useMapStore((s) => s.addChildren);
+  const reparentNode = useMapStore((s) => s.reparentNode);
+  const duplicateSubtree = useMapStore((s) => s.duplicateSubtree);
   const addCrossLink = useMapStore((s) => s.addCrossLink);
   const selectNode = useMapStore((s) => s.selectNode);
   const selectEdge = useMapStore((s) => s.selectEdge);
@@ -115,10 +122,15 @@ function NodeInspectorContent({ nodeId }: { nodeId: string }) {
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [linkDirection, setLinkDirection] = React.useState<"out" | "in">("out");
   const [linkType, setLinkType] = React.useState<EdgeType>("contributes_to");
+  // once the practitioner picks a type by hand, stop auto-suggesting over it
+  const [linkTypeTouched, setLinkTypeTouched] = React.useState(false);
   const [linkTarget, setLinkTarget] = React.useState<string | null>(null);
   const [showLinkForm, setShowLinkForm] = React.useState(false);
+  const [showMoveForm, setShowMoveForm] = React.useState(false);
 
   if (!map || !node) return null;
+
+  const byId = new Map(map.nodes.map((n) => [n.id, n]));
 
   const children = map.nodes
     .filter((n) => n.parentId === node.id)
@@ -140,15 +152,39 @@ function NodeInspectorContent({ nodeId }: { nodeId: string }) {
     (e) => e.source === node.id || e.target === node.id
   );
 
-  const otherNodes = map.nodes
+  const candidateContext = (n: MebsNode) => {
+    const parent = n.parentId ? byId.get(n.parentId) : undefined;
+    return parent
+      ? `${NODE_TYPE_INFO[n.type].label} · in ${parent.label || "Unnamed"}`
+      : NODE_TYPE_INFO[n.type].label;
+  };
+
+  const linkCandidates: NodePickerCandidate[] = map.nodes
     .filter((n) => n.id !== node.id && n.type !== "root")
-    .sort((a, b) => a.label.localeCompare(b.label));
-  const TARGET_ITEMS: Record<string, React.ReactNode> = Object.fromEntries(
-    otherNodes.map((n) => [n.id, n.label])
-  );
+    .sort((a, b) => a.label.localeCompare(b.label))
+    .map((n) => ({ node: n, context: candidateContext(n) }));
 
   const isRoot = node.type === "root";
   const descendantCount = countDescendants(map.nodes, node.id);
+
+  // a node can move anywhere except into itself/its subtree or its own parent
+  const subtree = new Set<string>([node.id]);
+  {
+    const stack = [node.id];
+    while (stack.length) {
+      const cur = stack.pop()!;
+      for (const n of map.nodes) {
+        if (n.parentId === cur && !subtree.has(n.id)) {
+          subtree.add(n.id);
+          stack.push(n.id);
+        }
+      }
+    }
+  }
+  const moveCandidates: NodePickerCandidate[] = map.nodes
+    .filter((n) => !subtree.has(n.id) && n.id !== node.parentId)
+    .sort((a, b) => a.label.localeCompare(b.label))
+    .map((n) => ({ node: n, context: candidateContext(n) }));
 
   const depth = (() => {
     const byId = new Map(map.nodes.map((n) => [n.id, n]));
@@ -162,12 +198,35 @@ function NodeInspectorContent({ nodeId }: { nodeId: string }) {
   })();
   const zoneChoices = depth === 1 || depth === 2 ? ZONE_CHOICES[depth] : null;
 
+  /** preset the type select with the clinical default for this pair, unless
+   *  the practitioner has already chosen one by hand */
+  const applyTypeSuggestion = (
+    targetId: string | null,
+    direction: "out" | "in"
+  ) => {
+    if (linkTypeTouched || !targetId) return;
+    const other = byId.get(targetId);
+    if (!other) return;
+    setLinkType(
+      direction === "out"
+        ? suggestEdgeType(node.type, other.type)
+        : suggestEdgeType(other.type, node.type)
+    );
+  };
+
+  const openLinkForm = () => {
+    setShowLinkForm((v) => !v);
+    setLinkTarget(null);
+    setLinkTypeTouched(false);
+  };
+
   const handleAddLink = () => {
     if (!linkTarget) return;
     if (linkDirection === "out") addCrossLink(node.id, linkTarget, linkType);
     else addCrossLink(linkTarget, node.id, linkType);
     setShowLinkForm(false);
     setLinkTarget(null);
+    setLinkTypeTouched(false);
   };
 
   return (
@@ -189,10 +248,18 @@ function NodeInspectorContent({ nodeId }: { nodeId: string }) {
 
       <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4">
         <FieldRow label="Label">
-          <Textarea
+          <DraftTextarea
             value={node.label}
             rows={2}
-            onChange={(e) => updateNode(node.id, { label: e.target.value })}
+            commitOnEnter
+            placeholder="Name this item…"
+            onCommit={(draft) => {
+              const label = draft.trim();
+              // a label can't be blanked — snap back to the existing one
+              if (!label) return node.label;
+              if (label !== node.label) updateNode(node.id, { label });
+              return label;
+            }}
             className="min-h-9 resize-none border-white/10 bg-zinc-900/60 text-[13px] leading-snug"
           />
         </FieldRow>
@@ -261,30 +328,61 @@ function NodeInspectorContent({ nodeId }: { nodeId: string }) {
         )}
 
         <FieldRow label="Summary">
-          <Textarea
+          <DraftTextarea
             value={node.summary ?? ""}
             rows={2}
+            commitOnEnter
             placeholder="One-line summary…"
-            onChange={(e) => updateNode(node.id, { summary: e.target.value })}
+            onCommit={(draft) => {
+              if (draft !== (node.summary ?? "")) {
+                updateNode(node.id, { summary: draft || undefined });
+              }
+              return draft;
+            }}
             className="resize-none border-white/10 bg-zinc-900/60 text-[13px]"
           />
         </FieldRow>
 
         <FieldRow label="Details / practitioner notes">
-          <Textarea
+          <DraftTextarea
             value={node.details ?? ""}
             rows={4}
             placeholder="Context, observations, considerations…"
-            onChange={(e) => updateNode(node.id, { details: e.target.value })}
+            onCommit={(draft) => {
+              if (draft !== (node.details ?? "")) {
+                updateNode(node.id, { details: draft || undefined });
+              }
+              return draft;
+            }}
             className="border-white/10 bg-zinc-900/60 text-[13px]"
           />
         </FieldRow>
 
         {suggestions.length > 0 && (
           <div className="space-y-2">
-            <Label className="text-[11px] tracking-wide text-zinc-400 uppercase">
-              Suggested branches
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-[11px] tracking-wide text-zinc-400 uppercase">
+                Suggested branches
+              </Label>
+              {suggestions.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    addChildren(
+                      node.id,
+                      suggestions.map((s) => ({
+                        label: s.label,
+                        type: s.type,
+                        childTypeHint: s.childTypeHint,
+                      }))
+                    )
+                  }
+                  className="cursor-pointer rounded-full border border-white/12 bg-zinc-800/80 px-2.5 py-1 text-[11px] font-medium text-zinc-200 transition-colors hover:border-white/25 hover:bg-zinc-700/80"
+                >
+                  + Add all ({suggestions.length})
+                </button>
+              )}
+            </div>
             <div className="flex flex-wrap gap-1.5">
               {suggestions.map((s) => (
                 <button
@@ -359,7 +457,7 @@ function NodeInspectorContent({ nodeId }: { nodeId: string }) {
               variant="outline"
               size="xs"
               className="border-white/12 bg-transparent text-zinc-300"
-              onClick={() => setShowLinkForm((v) => !v)}
+              onClick={openLinkForm}
             >
               <Link2 data-icon="inline-start" /> Link
             </Button>
@@ -420,7 +518,11 @@ function NodeInspectorContent({ nodeId }: { nodeId: string }) {
                   in: "→ This node",
                 }}
                 value={linkDirection}
-                onValueChange={(v) => v && setLinkDirection(v as "out" | "in")}
+                onValueChange={(v) => {
+                  if (!v) return;
+                  setLinkDirection(v as "out" | "in");
+                  applyTypeSuggestion(linkTarget, v as "out" | "in");
+                }}
               >
                 <SelectTrigger size="sm" className="w-full border-white/10">
                   <SelectValue />
@@ -430,10 +532,41 @@ function NodeInspectorContent({ nodeId }: { nodeId: string }) {
                   <SelectItem value="in">→ This node</SelectItem>
                 </SelectContent>
               </Select>
+              {linkTarget ? (
+                <div className="flex items-center gap-2 rounded-md border border-white/10 bg-zinc-800/70 px-2 py-1.5">
+                  <TypeDot type={byId.get(linkTarget)?.type ?? "domain"} />
+                  <span className="min-w-0 flex-1 truncate text-[12.5px] text-zinc-200">
+                    {byId.get(linkTarget)?.label || "Unnamed"}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="text-zinc-400 hover:text-zinc-100"
+                    aria-label="Choose a different node"
+                    onClick={() => setLinkTarget(null)}
+                  >
+                    <X />
+                  </Button>
+                </div>
+              ) : (
+                <NodePicker
+                  autoFocus
+                  candidates={linkCandidates}
+                  placeholder="Type to find the other node…"
+                  onPick={(id) => {
+                    setLinkTarget(id);
+                    applyTypeSuggestion(id, linkDirection);
+                  }}
+                />
+              )}
               <Select
                 items={EDGE_TYPE_ITEMS}
                 value={linkType}
-                onValueChange={(v) => v && setLinkType(v as EdgeType)}
+                onValueChange={(v) => {
+                  if (!v) return;
+                  setLinkType(v as EdgeType);
+                  setLinkTypeTouched(true);
+                }}
               >
                 <SelectTrigger size="sm" className="w-full border-white/10">
                   <SelectValue />
@@ -442,25 +575,6 @@ function NodeInspectorContent({ nodeId }: { nodeId: string }) {
                   {ALL_EDGE_TYPES.map((t) => (
                     <SelectItem key={t} value={t}>
                       {EDGE_TYPE_LABELS[t]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                items={TARGET_ITEMS}
-                value={linkTarget}
-                onValueChange={(v) => setLinkTarget(v)}
-              >
-                <SelectTrigger size="sm" className="w-full border-white/10">
-                  <SelectValue placeholder="Choose a node…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {otherNodes.map((n) => (
-                    <SelectItem key={n.id} value={n.id}>
-                      <span className="flex items-center gap-2">
-                        <TypeDot type={n.type} />
-                        <span className="truncate">{n.label}</span>
-                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -480,6 +594,39 @@ function NodeInspectorContent({ nodeId }: { nodeId: string }) {
         {!isRoot && (
           <>
             <Separator className="bg-white/8" />
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="xs"
+                  className="flex-1 border-white/12 bg-transparent text-zinc-300"
+                  title="Duplicate this branch (Ctrl+D)"
+                  onClick={() => duplicateSubtree(node.id)}
+                >
+                  <Copy data-icon="inline-start" /> Duplicate
+                </Button>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  className="flex-1 border-white/12 bg-transparent text-zinc-300"
+                  onClick={() => setShowMoveForm((v) => !v)}
+                >
+                  <FolderInput data-icon="inline-start" /> Move to…
+                </Button>
+              </div>
+              {showMoveForm && (
+                <NodePicker
+                  autoFocus
+                  candidates={moveCandidates}
+                  placeholder="Move under which node?"
+                  onPick={(newParentId) => {
+                    setShowMoveForm(false);
+                    reparentNode(node.id, newParentId);
+                    selectNode(node.id, { reveal: true });
+                  }}
+                />
+              )}
+            </div>
             <Button
               variant="destructive"
               size="sm"
