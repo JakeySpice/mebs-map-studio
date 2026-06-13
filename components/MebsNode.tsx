@@ -44,35 +44,64 @@ const COLLAPSE_CHEVRON: Record<GrowDir, React.ComponentType<{ className?: string
 
 export type MebsFlowNode = Node<MebsFlowData, "mebs">;
 
+/** What the user asked for when ending a rename — drives chained entry. */
+export type RenameIntent = "stop" | "sibling" | "child" | "outdent" | "cancel";
+
 function RenameInput({
   label,
-  onCommit,
-  onCancel,
+  onFinish,
 }: {
   label: string;
-  onCommit: (label: string) => void;
-  onCancel: () => void;
+  onFinish: (label: string, intent: RenameIntent) => void;
 }) {
   const [draft, setDraft] = React.useState(label);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  // Chaining moves editing to a freshly added node, unmounting this input.
+  // The unmount fires a stray blur; once finished, ignore it so it can't
+  // clobber the next node's editing state.
+  const doneRef = React.useRef(false);
 
-  const commitRename = () => {
-    onCommit(draft.trim());
+  // React's autoFocus fires while React Flow still has the freshly mounted
+  // node hidden for measurement, so focus() silently fails and keystrokes
+  // fall through to the canvas. Retry across a few frames until it sticks.
+  React.useEffect(() => {
+    let raf = 0;
+    let attempts = 0;
+    const tryFocus = () => {
+      const el = inputRef.current;
+      if (!el || attempts++ > 20) return;
+      el.focus({ preventScroll: true });
+      if (document.activeElement === el) el.select();
+      else raf = requestAnimationFrame(tryFocus);
+    };
+    tryFocus();
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const finish = (intent: RenameIntent) => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    onFinish(draft.trim(), intent);
   };
 
   return (
     <input
-      autoFocus
+      ref={inputRef}
       value={draft}
+      placeholder="Name this item…"
       onChange={(e) => setDraft(e.target.value)}
-      onFocus={(e) => e.target.select()}
-      onBlur={commitRename}
+      onBlur={() => finish("stop")}
       onKeyDown={(e) => {
         e.stopPropagation();
-        if (e.key === "Enter") commitRename();
-        if (e.key === "Escape") onCancel();
+        if (e.key === "Enter") finish("sibling");
+        if (e.key === "Tab") {
+          e.preventDefault();
+          finish(e.shiftKey ? "outdent" : "child");
+        }
+        if (e.key === "Escape") finish("cancel");
       }}
       onMouseDown={(e) => e.stopPropagation()}
-      className="nodrag w-full bg-transparent text-[13px] font-medium outline-none"
+      className="nodrag w-full bg-transparent text-[13px] font-medium outline-none placeholder:text-[#1f2430]/45"
       style={{ color: "#1f2430" }}
     />
   );
@@ -83,9 +112,43 @@ function MebsNodeComponent({ id, data, selected }: NodeProps<MebsFlowNode>) {
   const colors = nodeColors(mebs.type);
   const toggleCollapsed = useMapStore((s) => s.toggleCollapsed);
   const addChild = useMapStore((s) => s.addChild);
+  const addSiblingAfter = useMapStore((s) => s.addSiblingAfter);
+  const deleteNode = useMapStore((s) => s.deleteNode);
   const selectNode = useMapStore((s) => s.selectNode);
   const setEditingNode = useMapStore((s) => s.setEditingNode);
   const updateNode = useMapStore((s) => s.updateNode);
+
+  /**
+   * End an inline rename, optionally chaining straight into the next item:
+   * Enter = sibling, Tab = child, Shift+Tab = sibling of the parent. An empty
+   * commit ends the chain — and deletes the node if it was never named, so
+   * "Enter on a blank item" is the natural way out.
+   */
+  const finishRename = (label: string, intent: RenameIntent) => {
+    const wasUnnamed = mebs.label === "";
+    if (intent === "cancel" || label === "") {
+      setEditingNode(null);
+      if (wasUnnamed) deleteNode(id);
+      return;
+    }
+    if (label !== mebs.label) updateNode(id, { label });
+    if (intent === "sibling" || intent === "child" || intent === "outdent") {
+      const nextId =
+        intent === "sibling"
+          ? addSiblingAfter(id)
+          : intent === "child"
+            ? addChild(id)
+            : mebs.parentId
+              ? addSiblingAfter(mebs.parentId)
+              : null;
+      if (nextId) {
+        selectNode(nextId);
+        setEditingNode(nextId);
+        return;
+      }
+    }
+    setEditingNode(null);
+  };
 
   const connection = useConnection();
   const connecting = connection.inProgress;
@@ -196,22 +259,19 @@ function MebsNodeComponent({ id, data, selected }: NodeProps<MebsFlowNode>) {
         <RenameInput
           key={`${id}:${mebs.label}`}
           label={mebs.label}
-          onCommit={(label) => {
-            if (label && label !== mebs.label) updateNode(id, { label });
-            setEditingNode(null);
-          }}
-          onCancel={() => setEditingNode(null)}
+          onFinish={finishRename}
         />
       ) : (
         <span
           className={cn(
             "line-clamp-3 w-full pr-1 leading-[18px]",
             isRoot ? "text-[13.5px] font-semibold" : "text-[13px] font-medium",
-            depth === 1 && "font-semibold"
+            depth === 1 && "font-semibold",
+            !mebs.label && "opacity-45"
           )}
           style={{ color: "#1f2430" }}
         >
-          {mebs.label}
+          {mebs.label || "Unnamed"}
         </span>
       )}
 

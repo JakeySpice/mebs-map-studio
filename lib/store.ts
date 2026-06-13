@@ -15,6 +15,7 @@ import {
   newId,
   saveMap,
 } from "@/lib/storage";
+import { suggestEdgeType } from "@/lib/edgeSuggest";
 
 /** How much of the semantic relationship layer is drawn. */
 export type LinkVisibility = "off" | "selected" | "all";
@@ -63,8 +64,18 @@ interface MapState {
   updateMapTitle: (title: string) => void;
 
   addChild: (parentId: string, partial?: Partial<MebsNode>) => string | null;
+  /** insert a new node directly after `id` among its siblings (root: no-op) */
+  addSiblingAfter: (id: string, partial?: Partial<MebsNode>) => string | null;
+  /** append several children under one parent as a single undo step */
+  addChildren: (parentId: string, partials: Array<Partial<MebsNode>>) => void;
   updateNode: (id: string, patch: Partial<MebsNode>) => void;
   deleteNode: (id: string) => void;
+  /** swap `id` with its previous (-1) or next (+1) sibling */
+  moveNode: (id: string, delta: -1 | 1) => void;
+  /** move `id` (and its subtree) under a new parent, appended last */
+  reparentNode: (id: string, newParentId: string) => void;
+  /** clone `id`'s subtree (incl. internal relationships) right after it */
+  duplicateSubtree: (id: string) => string | null;
   toggleCollapsed: (id: string) => void;
   setAllCollapsed: (collapsed: boolean) => void;
 
@@ -351,7 +362,9 @@ export const useMapStore = create<MapState>((set, get) => ({
     const node: MebsNode = {
       id: newId(),
       type: (partial?.type ?? parent.childTypeHint ?? "domain") as NodeType,
-      label: partial?.label ?? "New item",
+      // empty = "not named yet": committing an empty rename deletes the node,
+      // so abandoned adds don't litter the map (see MebsNode RenameInput)
+      label: partial?.label ?? "",
       summary: partial?.summary,
       details: partial?.details,
       parentId,
@@ -374,6 +387,83 @@ export const useMapStore = create<MapState>((set, get) => ({
       focusRequest: { ids: [parentId, node.id], nonce: Date.now() },
     });
     return node.id;
+  },
+
+  addSiblingAfter: (id, partial) => {
+    const state = get();
+    const { map } = state;
+    if (!map) return null;
+    const node = map.nodes.find((n) => n.id === id);
+    // the root has no siblings
+    if (!node || !node.parentId) return null;
+    pushHistory(state);
+    const sibling: MebsNode = {
+      id: newId(),
+      // chaining usually continues a run of like items, so inherit the type
+      type: (partial?.type ?? node.type) as NodeType,
+      label: partial?.label ?? "",
+      summary: partial?.summary,
+      details: partial?.details,
+      parentId: node.parentId,
+      order: node.order + 1,
+      collapsed: false,
+      childTypeHint: partial?.childTypeHint ?? node.childTypeHint,
+      templateId: partial?.templateId,
+    };
+    const nodes = map.nodes.map((n) =>
+      n.parentId === node.parentId && n.order > node.order
+        ? { ...n, order: n.order + 1 }
+        : n
+    );
+    const committed = commit({ ...map, nodes: [...nodes, sibling] });
+    if (!("map" in committed)) {
+      set(committed);
+      return null;
+    }
+    set({
+      ...committed,
+      focusRequest: { ids: [id, sibling.id], nonce: Date.now() },
+    });
+    return sibling.id;
+  },
+
+  addChildren: (parentId, partials) => {
+    const state = get();
+    const { map } = state;
+    if (!map || partials.length === 0) return;
+    const parent = map.nodes.find((n) => n.id === parentId);
+    if (!parent) return;
+    pushHistory(state);
+    const siblings = map.nodes.filter((n) => n.parentId === parentId);
+    let nextOrder =
+      siblings.length > 0 ? Math.max(...siblings.map((s) => s.order)) + 1 : 0;
+    const added: MebsNode[] = partials.map((p) => ({
+      id: newId(),
+      type: (p.type ?? parent.childTypeHint ?? "domain") as NodeType,
+      label: p.label ?? "",
+      summary: p.summary,
+      details: p.details,
+      parentId,
+      order: nextOrder++,
+      collapsed: false,
+      childTypeHint: p.childTypeHint,
+      templateId: p.templateId,
+    }));
+    const nodes = map.nodes.map((n) =>
+      n.id === parentId ? { ...n, collapsed: false } : n
+    );
+    const committed = commit({ ...map, nodes: [...nodes, ...added] });
+    if (!("map" in committed)) {
+      set(committed);
+      return;
+    }
+    set({
+      ...committed,
+      focusRequest: {
+        ids: [parentId, ...added.map((a) => a.id)],
+        nonce: Date.now(),
+      },
+    });
   },
 
   updateNode: (id, patch) => {
@@ -420,6 +510,121 @@ export const useMapStore = create<MapState>((set, get) => ({
           ? null
           : selectedEdgeId,
     });
+  },
+
+  moveNode: (id, delta) => {
+    const state = get();
+    const { map } = state;
+    if (!map) return;
+    const node = map.nodes.find((n) => n.id === id);
+    if (!node || !node.parentId) return;
+    const siblings = map.nodes
+      .filter((n) => n.parentId === node.parentId)
+      .sort((a, b) => a.order - b.order);
+    const idx = siblings.findIndex((s) => s.id === id);
+    const swapWith = siblings[idx + delta];
+    if (!swapWith) return;
+    pushHistory(state);
+    // renumber the whole sibling run (also normalises any legacy order ties)
+    const reordered = [...siblings];
+    reordered[idx] = swapWith;
+    reordered[idx + delta] = node;
+    const orderOf = new Map(reordered.map((s, i) => [s.id, i]));
+    set(
+      commit({
+        ...map,
+        nodes: map.nodes.map((n) =>
+          orderOf.has(n.id) ? { ...n, order: orderOf.get(n.id)! } : n
+        ),
+      })
+    );
+  },
+
+  reparentNode: (id, newParentId) => {
+    const state = get();
+    const { map } = state;
+    if (!map || id === newParentId) return;
+    const node = map.nodes.find((n) => n.id === id);
+    const target = map.nodes.find((n) => n.id === newParentId);
+    if (!node || !target || node.type === "root") return;
+    if (node.parentId === newParentId) return;
+    // a node cannot move into its own subtree
+    if (subtreeIds(map.nodes, id).has(newParentId)) return;
+    pushHistory(state);
+    const siblings = map.nodes.filter((n) => n.parentId === newParentId);
+    const order =
+      siblings.length > 0 ? Math.max(...siblings.map((s) => s.order)) + 1 : 0;
+    const committed = commit({
+      ...map,
+      nodes: map.nodes.map((n) =>
+        n.id === id
+          ? { ...n, parentId: newParentId, order }
+          : n.id === newParentId
+            ? { ...n, collapsed: false }
+            : n
+      ),
+    });
+    if (!("map" in committed)) {
+      set(committed);
+      return;
+    }
+    set({
+      ...committed,
+      focusRequest: { ids: [newParentId, id], nonce: Date.now() },
+    });
+  },
+
+  duplicateSubtree: (id) => {
+    const state = get();
+    const { map } = state;
+    if (!map) return null;
+    const node = map.nodes.find((n) => n.id === id);
+    if (!node || node.type === "root" || !node.parentId) return null;
+    pushHistory(state);
+    const ids = subtreeIds(map.nodes, id);
+    const idMap = new Map<string, string>();
+    for (const oldId of ids) idMap.set(oldId, newId());
+    const clones = map.nodes
+      .filter((n) => ids.has(n.id))
+      .map((n) => ({
+        ...n,
+        id: idMap.get(n.id)!,
+        parentId: n.id === id ? node.parentId : idMap.get(n.parentId!)!,
+        order: n.id === id ? node.order + 1 : n.order,
+        label:
+          n.id === id && n.label.trim() ? `${n.label} (copy)` : n.label,
+      }));
+    // relationships fully inside the subtree travel with the copy
+    const clonedEdges = map.edges
+      .filter((e) => ids.has(e.source) && ids.has(e.target))
+      .map((e) => ({
+        ...e,
+        id: newId(),
+        source: idMap.get(e.source)!,
+        target: idMap.get(e.target)!,
+      }));
+    const shifted = map.nodes.map((n) =>
+      n.parentId === node.parentId && n.order > node.order
+        ? { ...n, order: n.order + 1 }
+        : n
+    );
+    const cloneTopId = idMap.get(id)!;
+    const committed = commit({
+      ...map,
+      nodes: [...shifted, ...clones],
+      edges: [...map.edges, ...clonedEdges],
+    });
+    if (!("map" in committed)) {
+      set(committed);
+      return null;
+    }
+    set({
+      ...committed,
+      selectedNodeId: cloneTopId,
+      selectedEdgeId: null,
+      focusRequest: { ids: [id, cloneTopId], nonce: Date.now() },
+    });
+    return cloneTopId;
   },
 
   toggleCollapsed: (id) => {
@@ -471,16 +676,24 @@ export const useMapStore = create<MapState>((set, get) => ({
     );
   },
 
-  addCrossLink: (source, target, type = "contributes_to") => {
+  addCrossLink: (source, target, type) => {
     const state = get();
     const { map } = state;
     if (!map || source === target) return null;
+    const sourceNode = map.nodes.find((n) => n.id === source);
+    const targetNode = map.nodes.find((n) => n.id === target);
+    if (!sourceNode || !targetNode) return null;
+    // no explicit type (drag-to-connect) → clinically sensible default for
+    // this endpoint pair, editable in the edge inspector afterwards
+    const effectiveType =
+      type ?? suggestEdgeType(sourceNode.type, targetNode.type);
     const exists = map.edges.some(
-      (e) => e.source === source && e.target === target && e.type === type
+      (e) =>
+        e.source === source && e.target === target && e.type === effectiveType
     );
     if (exists) return null;
     pushHistory(state);
-    const edge: MebsEdge = { id: newId(), source, target, type };
+    const edge: MebsEdge = { id: newId(), source, target, type: effectiveType };
     const committed = commit({ ...map, edges: [...map.edges, edge] });
     if (!("map" in committed)) {
       set(committed);
